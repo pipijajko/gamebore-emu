@@ -3,8 +3,6 @@
 
 
 
-
-
 #define GB_TICKS_HBLANK    204   // MODE 00 average (201-207 ticks)
 #define GB_TICKS_VBLANK    456   // MODE 01 (456 ticks per LY increment)
 #define GB_TICKS_OAM_READ  80    // MODE 10 average (77-83 ticks)
@@ -20,7 +18,8 @@
 
 
 
-void gb_INTERRUPT_request(byte_t const interrupt_signal_flag) {
+void gb_INTERRUPT_request(byte_t const interrupt_signal_flag) 
+{
 
     gb_word_t *const IF = GB_MMU_ACCESS_INTERNAL(GB_IO_IF);
     StopIf(interrupt_signal_flag > GB_INT_FLAG_KEYPAD, 
@@ -32,8 +31,8 @@ void gb_INTERRUPT_request(byte_t const interrupt_signal_flag) {
 }
 
 
-void gb_INTERRUPT_execute(void) {
-
+void gb_INTERRUPT_execute(void) 
+{
     gb_word_t *const IF = GB_MMU_ACCESS_INTERNAL(GB_IO_IF);
     gb_word_t *const IE = GB_MMU_ACCESS_INTERNAL(GB_IO_IE);
     _Bool      const IME = g_GB.interrupts.IME;
@@ -75,9 +74,8 @@ void gb_INTERRUPT_execute(void) {
 
 
 //should this be moved to DISPLAY?
-void gb_INTERRUPT_step(byte_t ticks_delta) {
-
-
+void gb_INTERRUPT_step(byte_t ticks_delta) 
+{
     g_GB.interrupts.last_opcode_ticks = ticks_delta;
     g_GB.interrupts.total_ticks += ticks_delta;
     g_GB.interrupts.display_modeclock += ticks_delta;

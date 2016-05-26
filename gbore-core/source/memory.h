@@ -60,10 +60,10 @@ typedef struct gb_memory_unit_s {
 
 
 //Access memory in special 's' mode - without any checks and tracing in MMU module
-#define GB_MMU_ACCESS_INTERNAL(address) gb_MMU_access(&g_GB, (address), 's')
+#define GB_MMU_ACCESS_INTERNAL(address) gb_MMU_access((address), 's')
 
 //TODO:Enable LTCG for inlining
-gb_word_t * gb_MMU_access(struct gb_machine_s* gb, gb_addr_t const address, char const mode);
+gb_word_t * gb_MMU_access(gb_addr_t const address, char const mode);
 
 
 //
@@ -71,25 +71,25 @@ gb_word_t * gb_MMU_access(struct gb_machine_s* gb, gb_addr_t const address, char
 //
 __forceinline
 gb_word_t const * const
-gb_MMU_load8(struct gb_machine_s* const gb, gb_addr_t const address) {
+gb_MMU_load8(gb_addr_t const address) {
 
-    return gb_MMU_access(gb, address, 'r');
+    return gb_MMU_access(address, 'r');
 }
 
 
 __forceinline
 gb_dword_t const * const
-gb_MMU_load16(struct gb_machine_s * const gb, gb_addr_t const address) {
+gb_MMU_load16(gb_addr_t const address) {
 
-    return (gb_dword_t*)gb_MMU_access(gb, address, 'r');
+    return (gb_dword_t*)gb_MMU_access(address, 'r');
 }
 
 
 __forceinline
 gb_word_t * const
-gb_MMU_store8(struct gb_machine_s* const gb, gb_addr_t const address) {
+gb_MMU_store8(gb_addr_t const address) {
 
-    return gb_MMU_access(gb, address, 'w');
+    return gb_MMU_access(address, 'w');
 }
 
 
@@ -97,16 +97,16 @@ gb_MMU_store8(struct gb_machine_s* const gb, gb_addr_t const address) {
 
 __forceinline
 gb_dword_t * const
-gb_MMU_store16(struct gb_machine_s * const gb, gb_addr_t const address) {
+gb_MMU_store16(gb_addr_t const address) {
 
-    return (gb_dword_t*)gb_MMU_access(gb, address, 'w');
+    return (gb_dword_t*)gb_MMU_access(address, 'w');
 }
 
 
 
 void 
-gb_MMU_cartridge_init(struct gb_machine_s * const gb, void const * const cart_data, size_t const cart_data_size);
+gb_MMU_cartridge_init(void const * const cart_data, size_t const cart_data_size);
 
-void gb_MMU_step(struct gb_machine_s *const gb);
+void gb_MMU_step();
 
 

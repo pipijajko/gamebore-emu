@@ -31,7 +31,8 @@ static gb_color_s DMG_palette[4] = {
 
 //gb_DISPLAY_decompose_vram_coords()
 
-gb_color_s gb_DISPLAY_get_tile_pixel(gb_addr_t tiles_base, uint8_t tile_no, uint8_t x, uint8_t y) {
+gb_color_s gb_DISPLAY_get_tile_pixel(gb_addr_t tiles_base, uint8_t tile_no, uint8_t x, uint8_t y) 
+{
 
     gb_word_t const tile_size = 8 * 2;
     _Bool const is_signed = (tiles_base == GB_VRAM_TILES1_BEGIN); //is tile_no signed or not?
@@ -55,7 +56,8 @@ gb_color_s gb_DISPLAY_get_tile_pixel(gb_addr_t tiles_base, uint8_t tile_no, uint
 
 
 //should this be moved to DISPLAY?
-void gb_DISPLAY_render_line(gbdisplay_h disp, byte_t ticks_delta) {
+void gb_DISPLAY_render_line(gbdisplay_h disp, byte_t ticks_delta) 
+{
 
     UNUSED(ticks_delta);
     static gb_LCDC_mode prev_mode; //later move to separate display struct (not gbdisp_config_s)
@@ -157,7 +159,7 @@ void gb_DISPLAY_render_line(gbdisplay_h disp, byte_t ticks_delta) {
         uint8_t const tile_x = vram_x % GB_TILE_8x8;
         uint8_t const tile_y = vram_y % GB_TILE_8x8;
 
-        gb_color_s const c = gb_DISPLAY_get_tile_pixel(GB_VRAM_TILES2_BEGIN, tile_no, tile_x, tile_y);
+        gb_color_s const c = gb_DISPLAY_get_tile_pixel(tile_data_base, tile_no, tile_x, tile_y);
 
         VRAM[vram_y][vram_x] = c;
         gbdisp_putpixel(disp, i, LY, c);

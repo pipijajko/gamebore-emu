@@ -1,6 +1,6 @@
 #pragma once
 #include <stddef.h>
-//SharpLR35902 CPU
+//SharpLR35902 CPU register layout
 
 
 #pragma pack(1)

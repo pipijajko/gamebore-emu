@@ -9,6 +9,8 @@
 #define GBDBG_MAX_LEN 1024
 
 
+
+
 void    gbdbg_build_decoder_table(struct gb_instruction_s slots[], const size_t slots_n);
 errno_t gbdbg_build_text_lookup(const char* filename, char* arr[], const size_t arr_size);
 void    gbdbg_free_text_lookup(char* arr[],const size_t arr_size);
@@ -71,6 +73,7 @@ gbdbg_destroy(gb_debugdata_h  handle)
     free(dbg);
 
 }
+
 
 int gdbg_trace(gb_debugdata_h handle, char *fmtstr, ...) 
 {
@@ -153,8 +156,7 @@ gbdbg_free_text_lookup(char*  arr[], const size_t arr_size)
 
 typedef  byte_t(*gbdbg_handler_pfn)(uint8_t, uint16_t, void*); //extended opcode handler
 
-void
-gbdbg_CPU_trace(gb_debugdata_h handle, gb_opcode_t op, gb_dword_t d16,gb_dword_t progcount)
+void gbdbg_CPU_trace(gb_debugdata_h handle, gb_opcode_t op, gb_dword_t d16,gb_dword_t progcount)
 {
     assert(handle.unused);
     __declspec (thread) static char linebuf[GBDBG_MAX_LEN]; //not thread-safe

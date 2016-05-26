@@ -40,8 +40,6 @@ extern struct gb_machine_s g_GB;
 //
 
 
-
-
-void gb_initialize();
-void gb_emulate(void *cart_data, size_t cart_data_size);
+void gb_initialize(void const* const cart_data, size_t const cart_data_size);
+void gb_machine_step(gbdisplay_h disp);
 void gb_destroy();

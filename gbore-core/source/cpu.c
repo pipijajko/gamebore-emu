@@ -23,6 +23,7 @@ enum gb_alu_mode_e {
     gb_ALU_CP  = 0b111,
 } gb_alu_mode_e;
 
+//Bit Rotations
 #define DIR_LEFT  0
 #define DIR_RIGHT 1
 
@@ -62,49 +63,30 @@ Convenience macros
 #define PC (g_GB.r.PC)
 
 
-#define STOR8(ADDR) (*gb_MMU_store8(&g_GB, (ADDR)))
-#define LOAD8(ADDR)  (*gb_MMU_load8(&g_GB, (ADDR)))
+#define STOR8(ADDR) (*gb_MMU_store8((ADDR)))
+#define LOAD8(ADDR)  (*gb_MMU_load8((ADDR)))
 
-#define STOR16(ADDR) (*gb_MMU_store16(&g_GB, (ADDR)))
-#define LOAD16(ADDR)  (*gb_MMU_load16(&g_GB, (ADDR)))
+#define STOR16(ADDR) (*gb_MMU_store16((ADDR)))
+#define LOAD16(ADDR)  (*gb_MMU_load16((ADDR)))
 
 
 //Zero
-#define Z_FLAG(cond) SETCLR((cond), F, GB_FLAG_Z
-//#define SETCLR_Z(cond) SETCLR((cond), F, GB_FLAG_Z)
-//#define SET_Z() ((F) |= GB_FLAG_Z)
-//#define CLR_Z() ((F) &= ~GB_FLAG_Z)
 #define GET_Z() (((F) & GB_FLAG_Z) == GB_FLAG_Z)
 
 //Substract FLAG
-#define N_FLAG(cond) SETCLR((cond), F, GB_FLAG_N)
-//#define SETCLR_N(cond) SETCLR((cond), F, GB_FLAG_N)
-//#define SET_N()  ((F) |= GB_FLAG_N)
-//#define CLR_N()  ((F) &= ~GB_FLAG_N)
 #define GET_N() (((F) & GB_FLAG_N) == GB_FLAG_N)
 
 //Half-carry flag
-
-#define H_FLAG(cond) SETCLR((cond), F, GB_FLAG_H)
-//#define SETCLR_H(cond) SETCLR((cond), F, GB_FLAG_H)
-//#define SET_H() ((F) |= GB_FLAG_H)
-//#define CLR_H() ((F) &= ~GB_FLAG_H) 
 #define GET_H() (((F) & GB_FLAG_H) == GB_FLAG_H)
 
 //Carry flag
-#define C_FLAG(cond) SETCLR((cond), F, GB_FLAG_C)
-//#define SETCLR_C(cond) SETCLR((cond), F, GB_FLAG_C)
-//#define SET_C() ((F) |= GB_FLAG_C) 
-//#define CLR_C() ((F) &= ~GB_FLAG_C) 
 #define GET_C() (((F) & GB_FLAG_C) == GB_FLAG_C)
-
 
 
 typedef 
 struct flagsetter_s {
     int8_t ZR, NG, HC, CR;
 }flagsetter_s;
-
 
 #define FLAG_OMIT ((int8_t)(-127)) //This is kind of hacky :/
 
@@ -131,9 +113,9 @@ flags_setter(flagsetter_s f) {
 
 
 //Half Carry Calculators
-//HC_ADD: Set if carry from bit 3
-//HC_SUB: Set if no borrow from bit 4.
-
+//HC_ADD: TRUE if carry from bit 3
+//HC_SUB: TRUE if no borrow from bit 4.
+//HC_ADD16: TRUE if carry from bit 13
 #define HC_ADD(VAL, ADDEND)     (((((VAL) & 0xF) + ((ADDEND)    & 0xF)) & 0x10) == 0x10)
 #define HC_SUB(VAL, SUBTRAHEND)   (((VAL) & 0xF) < ((SUBTRAHEND)& 0xF)) 
 #define HC_ADD16(VAL, ADDEND) (((((VAL) & 0xFFF) + ((ADDEND) & 0xFFF)) & 0x1000) == 0x1000)
@@ -144,13 +126,13 @@ flags_setter(flagsetter_s f) {
 static gb_dword_t * const g_regmap_R[]  = { &BC, &DE, &HL, &SP }; //2bit
 static gb_dword_t * const g_regmap_R2[] = { &BC, &DE, &HL, &AF }; //2bit'
 static gb_word_t  * const g_regmap_D[]  = { &B, &C, &D, &E, &H,&L, NULL, &A }; //3bit
-#define HL_INDIRECT 0x6
+#define HL_INDIRECT 0x6 
 
 //
 //Selectors for 8-bit registers, in case when `d` is 0x6, we need to load/store to memory.
 //
-#define REG8_WRITE(d) (*( ((d) != HL_INDIRECT) ? g_regmap_D[(d)] : gb_MMU_store8(&g_GB, HL) ))
-#define REG8_READ(d)  (*( ((d) != HL_INDIRECT) ? g_regmap_D[(d)] : gb_MMU_load8(&g_GB, HL)  ))
+#define REG8_WRITE(d) (*( ((d) != HL_INDIRECT) ? g_regmap_D[(d)] : gb_MMU_store8(HL) ))
+#define REG8_READ(d)  (*( ((d) != HL_INDIRECT) ? g_regmap_D[(d)] : gb_MMU_load8(HL)  ))
 
 
 //
@@ -225,8 +207,7 @@ byte_t gb_CPU_step(void)
     return cycles;
 }
 
-byte_t
-gb_CPU_interrupt(gb_addr_t vector)
+byte_t gb_CPU_interrupt(gb_addr_t vector)
 {
     StopIf(vector < 0x0040 || vector > 0x0060, 
            abort(), 
@@ -666,7 +647,6 @@ byte_t gb_RST(gb_opcode_t op, uint16_t d16) {
     // Which states I should put "present address" on stack,
     // instead of "push address of the next instruction" (i.e. like CALL).
     // For now I'm ignoring it and pretending this works like CALL,
-    // I don't get 
 
     byte_t const N = Y(op) << 3;
     SP -= 2;

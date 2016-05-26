@@ -18,10 +18,9 @@ FILE *error_log = NULL;
 
 
 gbdisp_event_evt gb_disp_redraw;
-gbdisp_event_evt gb_mainloop_step;
+gbdisp_event_evt gb_disp_idle;
 
 int main(int argc, char *argv[])
-
 {
     uint8_t *ROM      = NULL;
     size_t   ROM_size = 0;
@@ -75,7 +74,7 @@ int main(int argc, char *argv[])
         .width            = GB_SCREEN_W,
         .size_modifier    = 2,
         .window_name      = "GameBore",
-        .callbacks.OnIdle = gb_mainloop_step,
+        .callbacks.OnIdle = gb_disp_idle,
         .callbacks.OnRedraw = gb_disp_redraw,
         .callback_context = NULL,
     };
@@ -97,25 +96,23 @@ cleanup_generic:
 
     return 0;
 }
-/*
 
 
-*/
+
+void gb_disp_idle(gbdisplay_h disp, void* context) 
+{
+
+    UNUSED(context);
+    gb_machine_step(disp);
+
+}
 
 
-void gb_disp_redraw(gbdisplay_h disp, void* context) {
+void gb_disp_redraw(gbdisplay_h disp, void* context) 
+{
 
     UNUSED(context);
     gbdisp_buffer_ready(disp);
 
 }
 
-void gb_mainloop_step(gbdisplay_h disp, void* context) {
-    UNUSED(context);
-    
-    byte_t ticks = gb_CPU_step(); //gb_CPU uses global instance g_GB
-    gb_MMU_step(&g_GB);
-    gb_INTERRUPT_step(ticks); //gb_CPU uses global instance g_GB
-    gb_DISPLAY_render_line(disp, ticks);
-
-}

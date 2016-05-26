@@ -7,7 +7,6 @@
 #define UNUSED(...) (void)(__VA_ARGS__)
 
 
-
 // Is N in <A,B) range?
 #define IN_RANGE(N, A, B) ( (N) >= (A) && (N) < (B))
 

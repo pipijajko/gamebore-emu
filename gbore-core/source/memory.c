@@ -14,8 +14,6 @@ struct gb_memory_section {
 //
 // Generate memory-section data and lookups
 //
-
-
 #define GENERATE_ID_ENUM(a, b, ENUM) gb_##ENUM,
 #define GENERATE_TXTLOOKUP(a, b, STRING) #STRING,
 #define GENERATE_STRUCT_INIT(abegin, aend, NAME) {abegin, aend, NULL},
@@ -52,12 +50,9 @@ const char *gb_mem_section2text[] = {
 // 
 
 
-
-
-gb_word_t *
-gb_MMU_access(struct gb_machine_s* gb, gb_addr_t const address, char const mode) {
-
-    struct gb_memory_unit_s* u = &gb->m;
+gb_word_t* gb_MMU_access(gb_addr_t const address, char const mode) 
+{
+    gb_memory_unit_s *const u = &g_GB.m; //global 
 
     if ('r' == mode) {
         //
@@ -65,7 +60,7 @@ gb_MMU_access(struct gb_machine_s* gb, gb_addr_t const address, char const mode)
         // Just put an assert here to verify that no one messes with echo memory
         //
         if (IN_RANGE(address, 0xE000, 0xFE00)) {
-            gdbg_trace(gb->dbg, "Shadow Memory Access!@0x%04x\n", address);
+            gdbg_trace(g_GB.dbg, "Shadow Memory Access!@0x%04x\n", address);
         }
         return &u->mem[address];
     }
@@ -79,13 +74,13 @@ gb_MMU_access(struct gb_machine_s* gb, gb_addr_t const address, char const mode)
         }
 
         if (address == 0x9800) {
-            gdbg_trace(gb->dbg, "First sprite write @ 0x%04x\n", address);
+            gdbg_trace(g_GB.dbg, "First sprite write @ 0x%04x\n", address);
         }
 
 
         //Temporary here
         if (address < 0x8000) {
-            gdbg_trace(gb->dbg,"Invalid Memory Access! Write over ROM,@0x%04x\n", address);
+            gdbg_trace(g_GB.dbg,"Invalid Memory Access! Write over ROM,@0x%04x\n", address);
             //this is actually legit, for special operations, 
             //assert(false);
         }
@@ -126,9 +121,9 @@ gb_MMU_access(struct gb_machine_s* gb, gb_addr_t const address, char const mode)
 }
 
 
-
-void gb_MMU_step(struct gb_machine_s *const gb) {
-    struct gb_memory_unit_s* u = &gb->m;
+void gb_MMU_step() 
+{
+    gb_memory_unit_s *const u = &g_GB.m; //global 
 
     if (u->SIO.is_OAM_DMA_scheduled) {
         u->SIO.is_OAM_DMA_scheduled = false;
@@ -140,7 +135,7 @@ void gb_MMU_step(struct gb_machine_s *const gb) {
         gb_addr_t const source_address = u->mem[GB_IO_OAM_DMA] << 8;
         size_t const transfer_size = 0x9F;
         
-        gdbg_trace(gb->dbg, "OAM DMA 0x%04hx<--0x%04hx (0x%02xB)",
+        gdbg_trace(g_GB.dbg, "OAM DMA 0x%04hx<--0x%04hx (0x%02xB)",
                    dest_address, source_address, transfer_size);
 
         memcpy_s(&u->mem[dest_address],
@@ -167,31 +162,19 @@ void gb_MMU_step(struct gb_machine_s *const gb) {
 
 
         }
-
-
-
-
-
     }
 
 
 }
 
 
-void gb_MMU_cartridge_init(
-    struct gb_machine_s * const gb,
-    void const *  cart_data,
-    size_t const  cart_data_size
-) {
-    assert(gb);
+void gb_MMU_cartridge_init(void const * cart_data, size_t const cart_data_size)
+{
+    gb_memory_unit_s *const u = &g_GB.m; //global instance
+    memset(u, 0, sizeof(gb_memory_unit_s));
+
     assert(cart_data);
     assert(cart_data_size);
-
-    struct gb_memory_unit_s* u = &gb->m;
-
-
-    memset(u, 0, sizeof(struct gb_memory_unit_s));
-
 
     u->source.buffer = cart_data;
     u->source.size   = cart_data_size;
@@ -237,7 +220,7 @@ void gb_MMU_cartridge_init(
     u->mem[0xFF23] = u->mem[0x00BF]; // NR30
     u->mem[0xFF24] = u->mem[0x0077]; // NR50
     u->mem[0xFF25] = u->mem[0x00F3]; // NR51
-    u->mem[0xFF26] = (gb->gb_model == gb_dev_SGB) ? u->mem[0x00F0] : u->mem[0x00F1]; // NR52
+    u->mem[0xFF26] = (g_GB.gb_model == gb_dev_SGB) ? u->mem[0x00F0] : u->mem[0x00F1]; // NR52
     u->mem[0xFF40] = u->mem[0x0091]; // LCDC
     u->mem[0xFF42] = u->mem[0x0000]; // SCY
     u->mem[0xFF43] = u->mem[0x0000]; // SCX

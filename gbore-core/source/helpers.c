@@ -4,7 +4,8 @@
 #include <stdlib.h> //malloc
 #include <stdarg.h> //va_start et al
 
-int asprintf(char **str, char* fmt, ...) {
+int asprintf(char **str, char* fmt, ...) 
+{
     va_list argp;
     va_start(argp, fmt);
     char one_char[1];
