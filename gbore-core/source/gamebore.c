@@ -1,9 +1,9 @@
 // gamebore.cpp : Defines the entry point for the console application.
 //
 #define GDEBUG
-#include "stdafx.h"
 #include "gamebore.h"
 #include "dispatch_tables.h"
+#include "string.h"
 
 struct gb_machine_s g_GB;
 
@@ -20,8 +20,6 @@ gb_initialize(
     gb_MMU_cartridge_init(&g_GB, cart_data, cart_data_size); //mmu should take ownership of cart_data
     gb_CPU_init();
 
-    //g_GB.interrupts.IME = true; //TODO: do we start with IME enabled?
-    
 }
 
 

@@ -74,28 +74,28 @@
     <LinkIncremental>true</LinkIncremental>
     <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
     <RunCodeAnalysis>true</RunCodeAnalysis>
-    <OutDir>$(SolutionDir)\_build\$(Platform)_$(Configuration)\</OutDir>
+    <OutDir>$(SolutionDir)_build\$(Platform)_$(Configuration)\</OutDir>
     <IntDir>$(ProjectDir)..\_build\$(Platform)_$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
     <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
     <RunCodeAnalysis>true</RunCodeAnalysis>
-    <OutDir>$(SolutionDir)\_build\$(Platform)_$(Configuration)\</OutDir>
+    <OutDir>$(SolutionDir)_build\$(Platform)_$(Configuration)\</OutDir>
     <IntDir>$(ProjectDir)..\_build\$(Platform)_$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
     <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
     <RunCodeAnalysis>true</RunCodeAnalysis>
-    <OutDir>$(SolutionDir)\_build\$(Platform)_$(Configuration)\</OutDir>
+    <OutDir>$(SolutionDir)_build\$(Platform)_$(Configuration)\</OutDir>
     <IntDir>$(ProjectDir)..\_build\$(Platform)_$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
     <RunCodeAnalysis>true</RunCodeAnalysis>
-    <OutDir>$(SolutionDir)\_build\$(Platform)_$(Configuration)\</OutDir>
+    <OutDir>$(SolutionDir)_build\$(Platform)_$(Configuration)\</OutDir>
     <IntDir>$(ProjectDir)..\_build\$(Platform)_$(Configuration)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -185,6 +185,7 @@
   <ItemGroup>
     <ClCompile Include="..\source\cpu.c" />
     <ClCompile Include="..\source\dispatch_tables.c" />
+    <ClCompile Include="..\source\display.c" />
     <ClCompile Include="..\source\gamebore.c" />
     <ClCompile Include="..\source\gbdebug.c" />
     <ClCompile Include="..\source\helpers.c" />

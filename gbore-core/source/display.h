@@ -1,9 +1,5 @@
 #pragma once
 
-/*
-
-
-*/
 
 typedef struct { void* unused; } gbdisplay_h; 
 
@@ -66,13 +62,14 @@ void    gbdisp_buffer_ready(gbdisplay_h handle);
 void    gbdisp_stop(gbdisplay_h handle);
 
 
+void gb_DISPLAY_render_line(gbdisplay_h disp, byte_t ticks_delta);
 
-//#define GB_SCREEN_W 160
-//#define GB_SCREEN_H 144
+
+#define GB_SCREEN_W 160
+#define GB_SCREEN_H 144
 #define GB_FPS_LIMIT 60
-#define GB_SCREEN_W 300
-#define GB_SCREEN_H 300
-
+#define GB_VRAM_W 256
+#define GB_VRAM_H 256
 
 
 
@@ -110,7 +107,8 @@ void    gbdisp_stop(gbdisplay_h handle);
 #define GB_VRAM_TILES2_BEGIN 0x8000
 #define GB_VRAM_TILES_BYTES   0xFFF
 
-
+#define GB_TILE_8x8 8
+#define GB_TILE_32x32 32
 
 
 

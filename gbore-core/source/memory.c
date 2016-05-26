@@ -82,6 +82,7 @@ gb_MMU_access(struct gb_machine_s* gb, gb_addr_t const address, char const mode)
             gdbg_trace(gb->dbg, "First sprite write @ 0x%04x\n", address);
         }
 
+
         //Temporary here
         if (address < 0x8000) {
             gdbg_trace(gb->dbg,"Invalid Memory Access! Write over ROM,@0x%04x\n", address);
@@ -115,6 +116,7 @@ gb_MMU_access(struct gb_machine_s* gb, gb_addr_t const address, char const mode)
         return &u->mem[address];
     }
     if ('s' == mode || 'i' == mode) {
+
         //Special/Silent or Internal mode - perform no checks and no tracing
         return &u->mem[address];
     }
@@ -212,6 +214,7 @@ void gb_MMU_cartridge_init(
 
     /* TODO: Scroll Nintendo logo from $104:$133 */
     /* TODO: Add cheksum verification - LSB_of(SUM($143:$14d)+25) == 0 */
+
 
 
     u->mem[0xFF05] = u->mem[0x0000]; // TIMA

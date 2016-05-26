@@ -122,9 +122,9 @@ void gbdisp_putpixel(gbdisplay_h handle, uint8_t x, uint8_t y, gb_color_s c) {
     UNUSED(handle); //for future implementations
 
     uint32_t const scr_w = g_context.cfg.width;
-    StopIf(y * scr_w + x > g_context.screen_bytes, abort(), 
+    StopIf(y * scr_w + x > g_context.screen_bytes, abort(),
            "screen overflow!")
-    
+
     g_context.screen_ready = false; //dirty
     //
     //Calculate Pixel location in linear buffer

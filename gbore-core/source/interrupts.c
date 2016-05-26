@@ -74,7 +74,7 @@ void gb_INTERRUPT_execute(void) {
 }
 
 
-
+//should this be moved to DISPLAY?
 void gb_INTERRUPT_step(byte_t ticks_delta) {
 
 
@@ -215,10 +215,15 @@ the mode flag.
         case gb_LCDC_OAM_READ:  modename = "OAM READ"; break;
         case gb_LCDC_VRAM_READ: modename = "OAM+VRAM READ"; break;
         }
-        gdbg_trace(g_GB.dbg, "DISPLAY::new_mode:%s,ticks:%u,LY:%hhu\n", 
+
+        
+
+        gdbg_trace(g_GB.dbg,"DISPLAY::new_mode:%s,ticks:%u,LY:%hhu,STAT:0x%x,LCDC:0x%x\n", 
                    modename,
                    g_GB.interrupts.display_modeclock,
-                   *LY);
+                   *LY,
+                *STAT,
+                *LCDC);
         
         g_GB.interrupts.display_mode = next_mode;
         g_GB.interrupts.display_modeclock = 0;
@@ -238,7 +243,9 @@ the mode flag.
 
 
     //
-    //Execute requested interupts:
+    //Execute requested interupts (if any):
     //
     gb_INTERRUPT_execute(); 
 }
+
+

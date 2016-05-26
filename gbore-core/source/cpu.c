@@ -200,10 +200,6 @@ byte_t gb_CPU_step(void)
     gb_word_t   opcode = LOAD8(PC);
     gb_dword_t  d16    = LOAD16(PC + 1);
 
-
-    if (PC == 0x2803 || PC == 0x27EB) {
-        gbdbg_mute_print(g_GB.dbg, true);
-    }
     gbdbg_CPU_dumpregs(g_GB.dbg);
     gbdbg_CPU_trace(g_GB.dbg, opcode, d16, PC);
 
@@ -212,6 +208,20 @@ byte_t gb_CPU_step(void)
     PC += g_GB.ops[opcode].size;
     cycles = g_GB.ops[opcode].handler(opcode, d16);
 
+    static gb_word_t FF80_last = 1;
+
+    if (g_GB.m.mem[0xFF80] != FF80_last) {
+        gdbg_trace(g_GB.dbg, "0xFF80=0x%hhx@PC:0%hx\n ", g_GB.m.mem[0xFF80], PC - g_GB.ops[opcode].size);
+        FF80_last = g_GB.m.mem[0xFF80];
+    }
+
+    static gb_word_t FFE1_last = 1;
+
+    if (g_GB.m.mem[0xFFE1] != FFE1_last) {
+        gdbg_trace(g_GB.dbg, "FFE1=0x%hhx@PC:0%hx\n ", g_GB.m.mem[0xFFE1], PC- g_GB.ops[opcode].size);
+        FFE1_last = g_GB.m.mem[0xFFE1];
+    }
+    g_GB.m.mem[0xFF00] = 0xDF;
     return cycles;
 }
 
