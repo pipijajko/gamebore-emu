@@ -223,8 +223,8 @@ typedef enum gb_LCDC_period {
     gb_LCDC_OAM_READ = 0b10,
     gb_LCDC_VRAM_READ = 0b11,
 
-    gb_LCDC_DISABLED = -2,
-    gb_LCDC_NO_CHANGE = -1,
+    gb_LCDC_DISABLED = -2, //special value
+    gb_LCDC_NO_CHANGE = -1, //special value
 } gb_LCDC_mode;
 
 
@@ -241,12 +241,8 @@ typedef struct gb_interrupt_data_s {
 
     _Bool    IME;
     gb_IME_transition IME_change;
-    
-    
-
     uint32_t total_ticks;
     uint32_t last_opcode_ticks;
-    
     
     uint32_t display_modeclock;
     uint32_t display_line;

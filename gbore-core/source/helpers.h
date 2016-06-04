@@ -40,6 +40,9 @@
 #define BIT_SET_N(x,n) ((x) | (1<<(n)))
 #define BIT_RES_N(x,n) ((x) & ~(1<<(n)))
 
+
+#define BIT(x,n) (_Bool)((((x) >> (n)) & 0x1) == 0x1)
+
 // StopIf macro - Use for generic (system) error handling,
 // For application specific debug and tracing use gdebug.h functions
 

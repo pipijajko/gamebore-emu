@@ -72,6 +72,12 @@ void gb_DISPLAY_render_line(gbdisplay_h disp, byte_t ticks_delta);
 #define GB_VRAM_H 256
 
 
+#define GB_TILE_WIDTH 8
+#define GB_TILE_BYTES (GB_TILE_WIDTH * 2) // 2 bytes per line
+#define GB_OBJ_X_OFFSET GB_TILE_WIDTH
+#define GB_OBJ_Y_OFFSET (GB_TILE_WIDTH * 2)
+
+
 
 
 
@@ -99,6 +105,10 @@ void gb_DISPLAY_render_line(gbdisplay_h disp, byte_t ticks_delta);
 #define GB_IO_WY   0xFF4A // Window Y
 #define GB_IO_WX   0xFF4B // Window X
 
+#define GB_IO_BGP  0xFF47
+#define GB_IO_OBP0 0xFF48
+#define GB_IO_OBP1 0xFF49
+
 #define GB_VRAM_BGMAP1_BEGIN 0x9800
 #define GB_VRAM_BGMAP2_BEGIN 0x9C00
 #define GB_VRAM_BGMAP_BYTES   0x3FF
@@ -107,9 +117,11 @@ void gb_DISPLAY_render_line(gbdisplay_h disp, byte_t ticks_delta);
 #define GB_VRAM_TILES2_BEGIN 0x8000
 #define GB_VRAM_TILES_BYTES   0xFFF
 
-#define GB_TILE_8x8 8
-#define GB_TILE_32x32 32
 
+#define GB_OBJ_MAP_BEGIN 0xFE00
+#define GB_OBJ_TILES_BEGIN GB_VRAM_TILES2_BEGIN
+#define GB_OBJ_COUNT        40
+#define GB_OBJ_MAX_PER_LINE 10
 
 
 
@@ -199,70 +211,44 @@ character dot data that corresponds to the CHR codes is also the same.
 Tile sets are overlapping (makes sense)
 */
 
-//static const uint32_t
-
-typedef enum gb_gpu_mode_e{
-    H_BLANK   = 0x0, // After the last hblank, push the screen data to canvas
-    V_BLANK   = 0x1,  // Vblank (10 lines)
-    OAM_Read  = 0x2, // OAM read mode, scanline active
-    VRAM_Read = 0x3,   // VRAM read mode, scanline active - Treat end of mode 3 as end of scanline
-
-}gb_gpu_mode_e;
-
-typedef struct gb_gpu_s {
-    //mode
-    //mode_clock
-    //scanline
-    int mode, clock, scanline;
-
-}gb_gpu_s;
 
 
-
-//typedef struct gb_gpu_CHRMAP_s { //aka BG Display Data (data for 32x32 chr codes)
-//    uint8_t CHR_code;
-//    union {
-//        struct{  //TODO: is the order good?
-//            int display_priority : 1;
-//            int UD_flip : 1;
-//            int RL_flip : 1;
-//            int reserved : 1;
-//            int CHR_bank : 1;
-//            int pallete : 3;
-//        };
-//
-//    };
-//
-//} gb_gpu_CHARMAP_s;
-
-
-typedef struct gb_gpu_CHR_s {
-    uint8_t row[8][2];
-}gb_gpu_CHR_s;
-
-#define PX(b1,b2, n) (b1 << n)
 
 #pragma pack(1)
-typedef struct  gb_gpu_OBJ_s {
-    uint8_t y, x;
-    uint8_t chr;
-    union {
-        uint8_t attr;
-        struct {
-            int CGB_PALLETE   : 3; //CGB Pallete
-            int CGB_CHAR_BANK : 1;
-            int DMG_PALLETE : 1;
-            int H_FLIP      : 1;
-            int V_FLIP      : 1;
-            int BG_PRIORITY : 1;
-        }z;
-    };
 
-}gb_gpu_OBJ_s;
-
-static_assert(sizeof(gb_gpu_OBJ_s) < 0x8, "invalid OBJ size");
+typedef 
+struct gb_CHR_tile_s {
+    uint8_t row[8][2];
+}gb_CHR_tile_s;
 
 
+typedef 
+struct  gb_OBJ_sprite_s {
+    uint8_t y;
+    uint8_t x;
+    uint8_t tile_no; // 8000h-8FFFh 
+    /*In 8x16 mode, the lower bit of the tile number is ignored.Ie.the upper 8x8
+        tile is "NN AND FEh", and the lower 8x8 tile is "NN OR 01h".*/
+    uint8_t attrib;
+
+}gb_OBJ_s;
+
+
+
+//typedef
+//enum gb_SPRITE_attribute
+//{
+//    gb_attrib_palette_no_CGB = 0x07,
+//    gb_attrib_bank_no_CGB    = 0x08,
+//    gb_attrib_palette_no_DMG = 0x10,
+//    gb_attrib_X_flip         = 0x20,
+//    gb_attrib_Y_flip         = 0x40,
+//    gb_attrib_BG_priority    = 0x80,
+//
+//};
+
+static_assert(sizeof(gb_CHR_tile_s) == 8 * 2, "invalid tile size");
+static_assert(sizeof(gb_OBJ_s) == sizeof(uint8_t) * 4, "invalid sprite size");
 
 
 #pragma pack()
