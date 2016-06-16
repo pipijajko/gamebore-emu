@@ -310,4 +310,4 @@ $RECYCLE.BIN/
 
 #freeglut
 freeglut/
-why_IF_dbg_output.txt
+*dbg_output.txt
