@@ -30,7 +30,10 @@ typedef struct gbdisp_context_s {
 static gbdisp_context_s g_context;
 void internal_idle_evt(void);
 void internal_display_evt(void);
-void internal_input_evt(void);
+void internal_input_evt(unsigned char key, int x, int y);
+void internal_input_release_evt(unsigned char key, int x, int y);
+void internal_specialinput_evt(int key, int x, int y);
+void internal_specialinput_release_evt(int key, int x, int y);
 void internal_reshape_window(GLsizei w, GLsizei h);
 void internal_texture_update(void);
 
@@ -69,7 +72,6 @@ gbdisp_init(gbdisp_config_s cfg, gbdisplay_h *handle)
 
     memset(d->screen_buffer, 0xFF, (h * w * sizeof(gb_color_s)));
 
-    d->screen_buffer[0] = (gb_color_s) { .RGBA = 0x0 };
     //TODO:Make platform agnostic
     timeBeginPeriod(1); // Make Windows system timers spin like crazy
 
@@ -89,8 +91,15 @@ gbdisp_init(gbdisp_config_s cfg, gbdisplay_h *handle)
     glutIdleFunc(internal_idle_evt);
     glutDisplayFunc(internal_display_evt);
     glutReshapeFunc(internal_reshape_window);
-    //glutKeyboardFunc()
-    //glutTimerFunc(REFRESH_INTERVAL, internal_timer, 1);
+    glutKeyboardFunc(internal_input_evt);
+    glutKeyboardUpFunc(internal_input_release_evt);
+
+    glutSpecialFunc(internal_specialinput_evt);
+    glutSpecialUpFunc(internal_specialinput_release_evt);
+
+    glutSetKeyRepeat(GLUT_KEY_REPEAT_OFF);
+
+    glutTimerFunc(REFRESH_INTERVAL, internal_timer, 1);
     
     // Create a texture 
     glTexImage2D(GL_TEXTURE_2D, 0, 3, w , h, 0, GL_RGBA, GL_UNSIGNED_BYTE, d->screen_buffer);
@@ -216,3 +225,61 @@ void internal_reshape_window(GLsizei w, GLsizei h)
 
     glutReshapeWindow(win_w, win_h);
 }
+
+//
+// oh how i hate you, freeglut
+// how about adding 10 more input callbacks? huh? HUUUH?
+//
+//the key mapping somewhat arbitrary and hardcoded, but will do for now
+__forceinline
+gb_INPUT_key_e internal_specialinput_map_key(int key) {
+    switch (key) {
+    case GLUT_KEY_LEFT:  return gb_INPUT_left;
+    case GLUT_KEY_RIGHT: return gb_INPUT_right;
+    case GLUT_KEY_UP:    return gb_INPUT_up;
+    case GLUT_KEY_DOWN:  return gb_INPUT_down;
+    case GLUT_KEY_HOME:  return gb_INPUT_start;
+    case GLUT_KEY_END:   return gb_INPUT_select;
+    default:             return gb_INPUT_none;
+    }
+}
+
+__forceinline
+gb_INPUT_key_e internal_input_map_key(unsigned char key) {
+    
+    switch (key) {
+    case 'z':
+    case 'Z':            return gb_INPUT_A;
+    case 'x':
+    case 'X':            return gb_INPUT_B;
+    default:             return gb_INPUT_none;
+    }
+}
+
+__forceinline 
+void internal_on_key_input(gb_INPUT_key_e const mapped_key, bool is_press) {
+    if (mapped_key != gb_INPUT_none && g_context.cfg.callbacks.OnKeyInput) {
+        g_context.cfg.callbacks.OnKeyInput(mapped_key, is_press);
+    }
+}
+
+void internal_specialinput_evt(int key, int x, int y) {
+    UNUSED(x, y);
+    internal_on_key_input(internal_specialinput_map_key(key), true);
+}
+
+void internal_specialinput_release_evt(int key, int x, int y) {
+    UNUSED(x, y);
+    internal_on_key_input(internal_specialinput_map_key(key), false);
+}
+
+void internal_input_evt(unsigned char key, int x, int y) {
+    UNUSED(x, y);
+    internal_on_key_input(internal_input_map_key(key), true);
+}
+
+void internal_input_release_evt(unsigned char key, int x, int y) {
+    UNUSED(x, y);
+    internal_on_key_input(internal_input_map_key(key), false);
+}
+

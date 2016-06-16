@@ -14,6 +14,7 @@ Dont include manually - easy to fuck up.
 #include "helpers.h"
 #include "cart.h"
 #include "cpu.h"
+#include "input.h"
 #include "display.h"
 #include "gbdebug.h"
 #include "memory.h"
@@ -27,9 +28,9 @@ typedef struct gb_machine_s {
     gb_memory_unit_s    m; // memory
     gb_cpu_registers_s  r; // registers
     gb_interrupt_data_s interrupts; // interrupts
-
-    gb_debugdata_h          dbg; //debug module handle
-    enum gb_meta_device      gb_model;
+    gb_keypad_s         keypad;
+    gb_debugdata_h      dbg; //debug module handle
+    enum gb_meta_device gb_model;
 
 } gb_machine_s;
 

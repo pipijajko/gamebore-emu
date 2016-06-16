@@ -35,7 +35,7 @@ void gb_INTERRUPT_execute(void)
 {
     gb_word_t *const IF = GB_MMU_ACCESS_INTERNAL(GB_IO_IF);
     gb_word_t *const IE = GB_MMU_ACCESS_INTERNAL(GB_IO_IE);
-    _Bool      const IME = g_GB.interrupts.IME;
+    bool      const IME = g_GB.interrupts.IME;
 
     byte_t requested_interupts = (*IE) & (*IF);
 
@@ -66,9 +66,12 @@ void gb_INTERRUPT_execute(void)
                     abort();
                 }
             }
-            if (isr) break;
+            if (isr) {
+                gb_CPU_interrupt(isr);
+                break;
+            }
         }
-        gb_CPU_interrupt(isr); 
+        
     }
 }
 
@@ -97,8 +100,8 @@ void gb_INTERRUPT_step(byte_t ticks_delta)
     gb_word_t const * const LCDC = GB_MMU_ACCESS_INTERNAL(GB_IO_LCDC);
     gb_word_t * const STAT       = GB_MMU_ACCESS_INTERNAL(GB_IO_STAT);
     gb_word_t * const LY         = GB_MMU_ACCESS_INTERNAL(GB_IO_LY);
-    _Bool const LCDC_enabled     = BIT_GET_N(*LCDC, 7);
-    _Bool const LCDC_toggled     = (LCDC_enabled != (g_GB.interrupts.display_mode != gb_LCDC_DISABLED));
+    bool const LCDC_enabled     = BIT_GET_N(*LCDC, 7);
+    bool const LCDC_toggled     = (LCDC_enabled != (g_GB.interrupts.display_mode != gb_LCDC_DISABLED));
     /*
     LCDC_enabled| current_mode      | (mode eval) | result   | LCDC toggled?
     0           |  DISABLED         |    0        |    0!=0  |   false
@@ -183,7 +186,7 @@ void gb_INTERRUPT_step(byte_t ticks_delta)
 
     // If LY == LYC:  Set the Coincidence flag, and set flag for matching STAT interrupt
     // Otherwise:     Clear coincidenc flag
-    _Bool is_coincident = (*LY) == (*LYC);
+    bool is_coincident = (*LY) == (*LYC);
 
     BIT_SETCLR_IF(is_coincident, *STAT, GB_STAT_COINCIDENCE_FLAG);
     STAT_event |= is_coincident ? (GB_INT_STAT_LYLYC_FLAG) : (0);

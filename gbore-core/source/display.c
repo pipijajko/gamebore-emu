@@ -21,10 +21,10 @@ struct gb_screen_state_s
     uint8_t WX, WY;
 
     //LCDC inferred values
-    _Bool     is_BG_display_enabled; 
-    _Bool     is_OBJ_display_enabled;
-    _Bool     is_Window_display_enabled;
-    _Bool     is_CHR_map_index_signed;
+    bool     is_BG_display_enabled; 
+    bool     is_OBJ_display_enabled;
+    bool     is_Window_display_enabled;
+    bool     is_CHR_map_index_signed;
     gb_addr_t CHR_map_addres;
     gb_addr_t CHR_tile_data_address;
     gb_addr_t WIN_map_address;
@@ -65,7 +65,7 @@ gb_screen_state_s gb_DISPLAY_get_state(void) {
     gb_addr_t BG_map_base = BIT(LCDC, 3) ? GB_VRAM_BGMAP2_BEGIN : GB_VRAM_BGMAP1_BEGIN;
     gb_addr_t BG_tile_data_base = BIT(LCDC, 4) ? GB_VRAM_TILES2_BEGIN : GB_VRAM_TILES1_BEGIN;
     gb_addr_t Win_map_base = BIT(LCDC, 6) ? GB_VRAM_BGMAP2_BEGIN : GB_VRAM_BGMAP1_BEGIN;
-    _Bool is_BG_map_signed = !BIT(LCDC, 4);
+    bool is_BG_map_signed = !BIT(LCDC, 4);
 
 
     return (gb_screen_state_s) {
@@ -90,7 +90,7 @@ gb_screen_state_s gb_DISPLAY_get_state(void) {
 
 
 
-_Bool gb_DISPLAY_can_scan() {
+bool gb_DISPLAY_can_scan() {
     //
     // Function to check whether we should render the current LY line.
     //
@@ -165,9 +165,9 @@ gb_color_s gb_DISPLAY_get_CHR_px(gb_screen_state_s const*const s, gb_word_t CHR_
 __forceinline
 gb_color_s gb_DISPLAY_get_OBJ_px(gb_screen_state_s const*const s, gb_OBJ_s sprite, uint8_t x, uint8_t y) {
 
-    _Bool const flip_x = BIT(sprite.attrib, 5);
-    _Bool const flip_y = BIT(sprite.attrib, 6);
-    _Bool const behind_bg = BIT(sprite.attrib, 7);
+    bool const flip_x = BIT(sprite.attrib, 5);
+    bool const flip_y = BIT(sprite.attrib, 6);
+    bool const behind_bg = BIT(sprite.attrib, 7);
     UNUSED(behind_bg); //TODO: IMPLEMENT BG PRIORITY BLENDING
 
     gb_addr_t const dmg_palette_addr = BIT(sprite.attrib, 4) ? GB_IO_OBP0 : GB_IO_OBP1;

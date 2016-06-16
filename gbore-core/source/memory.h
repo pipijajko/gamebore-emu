@@ -26,10 +26,10 @@ typedef struct gb_memory_unit_s {
     //bool           mmu_verbose; //or mmu_hooks_enabled 
 
     struct {
-        _Bool is_OAM_DMA_scheduled;
+        bool is_OAM_DMA_scheduled;
 
 
-        _Bool     IO_port_write_detected;
+        bool     IO_port_write_detected;
         gb_addr_t IO_port_write_address;    
         gb_word_t IO_port_pre_write_value; //SIO value before modification
 

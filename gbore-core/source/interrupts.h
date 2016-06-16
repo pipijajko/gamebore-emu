@@ -13,7 +13,7 @@ When ISR is executed it's bit should be zeroed before setting IE
 #define GB_ISR_VBLANK               0x0040 // Priority 1
 #define GB_ISR_LCDC_STATUS          0x0048 // Priority 2
 #define GB_ISR_TIMER_OVERFLOW       0x0050 // Priority 3
-#define GB_ISR_SERIAL_XFER_COMPLETE 0x0050 // Priority 4
+#define GB_ISR_SERIAL_XFER_COMPLETE 0x0058 // Priority 4
 #define GB_ISR_KEYPAD_HI_TO_LO      0x0060 // Priority 5
 
 
@@ -91,7 +91,7 @@ Tmer Clock Frequency (TAC)
 */
 #define GB_IO_TAC 0xFF07  
 
-#define GB_IO_P1 0xFF00 //Register for reading joypad info
+
 #define GB_IO_SB 0xFF01 //Serial Transfer Data
 #define GB_IO_SC 0xFF02 //Serial I/O Control Register (R/W)
 #define GB_IO_DIV 0xFF04 //Divider register incremented 16384 times per sec. (R/W) Writing sets it to 0.
@@ -239,7 +239,7 @@ typedef enum gb_IME_transition{
 typedef struct gb_interrupt_data_s {
     
 
-    _Bool    IME;
+    bool    IME;
     gb_IME_transition IME_change;
     uint32_t total_ticks;
     uint32_t last_opcode_ticks;

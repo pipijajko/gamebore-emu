@@ -7,17 +7,8 @@ typedef struct { void* unused; } gbdisplay_h;
 // Time - specified in microseconds
 //
 //typedef int64_t gbtime_t;
-typedef struct gbdisp_input_s {
-    //int32_t mouse_x, mouse_y;
-    uint8_t key;
-    uint8_t key_modifiers;
-} gbdisp_input_s;
-
-
 typedef void (gbdisp_event_evt)(gbdisplay_h, void*);
-typedef void (gbdisp_input_evt)(gbdisplay_h, gbdisp_input_s, void*);
 typedef gbdisp_event_evt *gbdisp_event_pfn;
-typedef gbdisp_input_evt *gbdisp_input_pfn;
 
 
 typedef struct {
@@ -30,7 +21,7 @@ typedef struct {
     uint8_t size_modifier;
     
     struct{
-        gbdisp_event_pfn OnKeyInput;
+        gb_input_handler_pfn OnKeyInput;
         gbdisp_event_pfn OnIdle;
         gbdisp_event_pfn OnRedraw;
 
@@ -123,14 +114,6 @@ void gb_DISPLAY_render_line(gbdisplay_h disp, byte_t ticks_delta);
 #define GB_OBJ_COUNT        40
 #define GB_OBJ_MAX_PER_LINE 10
 
-
-
-//struct gb_RGB{ uint8_t r,g,b};
-//
-
-
-//where to put general interrupt handling, CPU i guess?
-//
 
 
 /*
@@ -234,18 +217,6 @@ struct  gb_OBJ_sprite_s {
 }gb_OBJ_s;
 
 
-
-//typedef
-//enum gb_SPRITE_attribute
-//{
-//    gb_attrib_palette_no_CGB = 0x07,
-//    gb_attrib_bank_no_CGB    = 0x08,
-//    gb_attrib_palette_no_DMG = 0x10,
-//    gb_attrib_X_flip         = 0x20,
-//    gb_attrib_Y_flip         = 0x40,
-//    gb_attrib_BG_priority    = 0x80,
-//
-//};
 
 static_assert(sizeof(gb_CHR_tile_s) == 8 * 2, "invalid tile size");
 static_assert(sizeof(gb_OBJ_s) == sizeof(uint8_t) * 4, "invalid sprite size");

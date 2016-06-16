@@ -44,6 +44,8 @@ OP_DEF("00 --- 100", 1, INC_D)
 OP_DEF("00 --- 101", 1, DEC_D)
 OP_DEF("10 --- ---", 1, ALU_A_D)
 OP_DEF("11 --- 110", 2, ALU_A_N)
+
+OP_DEF("00 100 111", 1, DAA)
 OP_DEF("00 101 111", 1, CPL)
 
 OP_DEF("00 0-- 111", 1, ROT_A)

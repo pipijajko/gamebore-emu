@@ -189,21 +189,6 @@ byte_t gb_CPU_step(void)
 
     PC += g_GB.ops[opcode].size;
     cycles = g_GB.ops[opcode].handler(opcode, d16);
-
-    static gb_word_t FF80_last = 1;
-
-    if (g_GB.m.mem[0xFF80] != FF80_last) {
-        gdbg_trace(g_GB.dbg, "0xFF80=0x%hhx@PC:0%hx\n ", g_GB.m.mem[0xFF80], PC - g_GB.ops[opcode].size);
-        FF80_last = g_GB.m.mem[0xFF80];
-    }
-
-    static gb_word_t FFE1_last = 1;
-
-    if (g_GB.m.mem[0xFFE1] != FFE1_last) {
-        gdbg_trace(g_GB.dbg, "FFE1=0x%hhx@PC:0%hx\n ", g_GB.m.mem[0xFFE1], PC- g_GB.ops[opcode].size);
-        FFE1_last = g_GB.m.mem[0xFFE1];
-    }
-    g_GB.m.mem[0xFF00] = 0xDF;
     return cycles;
 }
 
@@ -404,6 +389,75 @@ byte_t gb_ALU_A_D(gb_opcode_t op, uint16_t d16) {
     UNUSED(d16);
     gb_ALU_A_N(op, REG8_READ(Z(op))); //wrap gb_ALU_A_N
     return (Z(op) == HL_INDIRECT) ? 8 : 4;
+}
+
+byte_t gb_DAA(gb_opcode_t op, uint16_t d16) { //Decimal Adjust register A
+    UNUSED(op, d16);
+    // Note:
+    // DAA inspects flags and will only work properly if invoked after ADD or SUB.
+    // And not after e.g. LOAD A,x
+    /*
+        --------------------------------------------------------------------------------
+        |           | C Flag  | HEX value in | H Flag | HEX value in | Number  | C flag|
+        | Operation | Before  | upper digit  | Before | lower digit  | added   | After |
+        |           | DAA     | (bit 7-4)    | DAA    | (bit 3-0)    | to byte | DAA   |
+        |------------------------------------------------------------------------------|
+        |           |    0    |     0-9      |   0    |     0-9      |   00    |   0   |
+        |   ADD     |    0    |     0-8      |   0    |     A-F      |   06    |   0   |
+        |           |    0    |     0-9      |   1    |     0-3      |   06    |   0   |
+        |   ADC     |    0    |     A-F      |   0    |     0-9      |   60    |   1   |
+        |           |    0    |     9-F      |   0    |     A-F      |   66    |   1   |
+        |   INC     |    0    |     A-F      |   1    |     0-3      |   66    |   1   |
+        |           |    1    |     0-2      |   0    |     0-9      |   60    |   1   |
+        |           |    1    |     0-2      |   0    |     A-F      |   66    |   1   |
+        |           |    1    |     0-3      |   1    |     0-3      |   66    |   1   |
+        |------------------------------------------------------------------------------|
+        |   SUB     |    0    |     0-9      |   0    |     0-9      |   00    |   0   |
+        |   SBC     |    0    |     0-8      |   1    |     6-F      |   FA    |   0   |
+        |   DEC     |    1    |     7-F      |   0    |     0-9      |   A0    |   1   |
+        |   NEG     |    1    |     6-F      |   1    |     6-F      |   9A    |   1   |
+        |------------------------------------------------------------------------------|
+    
+    */
+
+    gb_word_t const v = A;
+    gb_word_t addend = 0;
+    bool carry = 0;
+
+
+    if (GET_N()) { //DAA invoked after SUB or SBC
+
+        addend  = GET_H() ? 0xFA : 0x00; //aka -0x06
+        addend += GET_C() ? 0xA0 : 0x00; //aka -0x60
+        carry = (addend > 0x60);
+
+
+        //debug checks
+        StopIf(GET_H() && (v & 0x0F) < 0x06, abort(), "Expected value of lower digit >= 6");
+        StopIf(GET_C() && GET_H() && (v & 0xF0) < 0x70, abort(), "Expected value of upper digit >= 7");
+        StopIf(GET_C() && !GET_H() && (v & 0xF0) < 0x60, abort(), "Expected value of upper digit >= 6");
+
+        
+        
+
+    } else { //DAA invoked after ADD or ADC
+
+        addend  = ((v & 0x0F) > 0x09 || GET_H()) ? 0x06 : 0x00;
+        addend += ((v & 0xF0) > 0x90 || GET_C()) ? 0x60 : 0x00;
+        carry = GET_C();
+        
+        //debug checks
+        StopIf(GET_H() && (v & 0x0F) > 0x03, abort(), "Expected value of lower digit < 3");
+        StopIf(GET_C() && !GET_H() && (v & 0xF0) > 0x2F, abort(), "Expected value of upper digit < 2");
+        StopIf(GET_C() && GET_H() && (v & 0xF0) > 0x3F, abort(), "Expected value of upper digit < 3");
+    }
+    
+    A = v + addend;
+
+    FLAGS(.ZR = !A,
+          .HC = 0,
+          .CR = carry);
+    return 4;
 }
 
 

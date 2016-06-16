@@ -35,6 +35,9 @@
     <ClCompile Include="..\source\display.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\source\input.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\source\cart.h">
@@ -71,6 +74,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\source\types.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\source\input.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

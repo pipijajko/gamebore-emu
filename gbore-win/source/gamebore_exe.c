@@ -20,6 +20,7 @@ FILE *error_log = NULL;
 gbdisp_event_evt gb_disp_redraw;
 gbdisp_event_evt gb_disp_idle;
 
+
 int main(int argc, char *argv[])
 {
     uint8_t *ROM      = NULL;
@@ -67,15 +68,17 @@ int main(int argc, char *argv[])
     // Seed main program loop with IdleCallback
     //
     
+    //add keypad!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     gbdisp_config_s configuration =
     {
         argc, argv,
-        .height           = GB_SCREEN_H,
-        .width            = GB_SCREEN_W,
-        .size_modifier    = 2,
-        .window_name      = "GameBore",
+        .height = GB_SCREEN_H,
+        .width = GB_SCREEN_W,
+        .size_modifier = 2,
+        .window_name = "GameBore",
         .callbacks.OnIdle = gb_disp_idle,
         .callbacks.OnRedraw = gb_disp_redraw,
+        .callbacks.OnKeyInput = gb_INPUT_press_key,
         .callback_context = NULL,
     };
     gbdisplay_h display ;

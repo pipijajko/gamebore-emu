@@ -189,6 +189,7 @@
     <ClCompile Include="..\source\gamebore.c" />
     <ClCompile Include="..\source\gbdebug.c" />
     <ClCompile Include="..\source\helpers.c" />
+    <ClCompile Include="..\source\input.c" />
     <ClCompile Include="..\source\interrupts.c" />
     <ClCompile Include="..\source\memory.c" />
   </ItemGroup>
@@ -200,6 +201,7 @@
     <ClInclude Include="..\source\gamebore.h" />
     <ClInclude Include="..\source\gbdebug.h" />
     <ClInclude Include="..\source\helpers.h" />
+    <ClInclude Include="..\source\input.h" />
     <ClInclude Include="..\source\interrupts.h" />
     <ClInclude Include="..\source\memory.h" />
     <ClInclude Include="..\source\stdafx.h" />

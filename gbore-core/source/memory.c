@@ -60,7 +60,9 @@ gb_word_t* gb_MMU_access(gb_addr_t const address, char const mode)
         // Just put an assert here to verify that no one messes with echo memory
         //
         if (IN_RANGE(address, 0xE000, 0xFE00)) {
-            gdbg_trace(g_GB.dbg, "Shadow Memory Access!@0x%04x\n", address);
+            //Shadow memory access
+            gb_addr_t offset = address - 0xE000;
+            return &u->mem[0xC000+offset];
         }
         return &u->mem[address];
     }
@@ -69,14 +71,12 @@ gb_word_t* gb_MMU_access(gb_addr_t const address, char const mode)
         //Special IO 
         // Maybe a more generic handler which just saves modified address and prev value in
         // SIO range. Now we have two switch()es :(
+
+
+
         if (address == GB_IO_OAM_DMA) {
             u->SIO.is_OAM_DMA_scheduled = true;
         }
-
-        if (address == 0x9800) {
-            gdbg_trace(g_GB.dbg, "First sprite write @ 0x%04x\n", address);
-        }
-
 
         //Temporary here
         if (address < 0x8000) {
@@ -85,7 +85,6 @@ gb_word_t* gb_MMU_access(gb_addr_t const address, char const mode)
             //assert(false);
         }
         
-
         //
         // For write find memory section handler and run it. 
         // If handler is NULL, ignore.
@@ -94,9 +93,14 @@ gb_word_t* gb_MMU_access(gb_addr_t const address, char const mode)
             
             
             if (IN_RANGE(address, gb_mmu_sec[i].begin, gb_mmu_sec[i].end)) {
-                
+
+                if (i == gb_RAM_INTERNAL_ECHO) {
+                    //Shadow memory access
+                    gb_addr_t offset = address - 0xE000;
+                    return &u->mem[0xC000 + offset];
+                }
                 // Special IO:
-                if (i == gb_IO_PORTS) {
+                else if (i == gb_IO_PORTS) {
                     u->SIO.IO_port_write_detected  = true;
                     u->SIO.IO_port_write_address   = address;
                     u->SIO.IO_port_pre_write_value = u->mem[address];
@@ -159,8 +163,6 @@ void gb_MMU_step()
         case GB_IO_LCDC:
             //F-U
             break;
-
-
         }
     }
 
