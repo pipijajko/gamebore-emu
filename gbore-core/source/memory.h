@@ -23,7 +23,7 @@ limitations under the License.
 
 //TODO:Move rest of GB_IO_* here?
 #define GB_IO_OAM_DMA 0xFF46
-#define GB_IO_TIMER_MODULO 0xFF06 //belongs to interruptz
+
 
 
 struct gb_machine_s;

@@ -170,11 +170,13 @@ void gb_MMU_step()
         //gb_word_t const new_value = u->mem[port_address];
 
         switch (port_address) {
+        //IO-PORTs that autoreset on write
+        case GB_IO_DIV:
         case GB_IO_LY:
-            // If write to LY was detected - reset it's value to 0
             u->mem[port_address] = 0x00;
             break;
 
+        //Read-only registers
         case GB_IO_LCDC:
             //F-U
             break;

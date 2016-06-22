@@ -31,11 +31,8 @@ limitations under the License.
 
 
 
-
-
 void gb_INTERRUPT_request(byte_t const interrupt_signal_flag) 
 {
-
     gb_word_t *const IF = GB_MMU_ACCESS_INTERNAL(GB_IO_IF);
     StopIf(interrupt_signal_flag > GB_INT_FLAG_KEYPAD, 
            abort(),
@@ -52,7 +49,7 @@ void gb_INTERRUPT_execute(void)
     gb_word_t *const IE = GB_MMU_ACCESS_INTERNAL(GB_IO_IE);
     bool      const IME = g_GB.interrupts.IME;
 
-    byte_t requested_interupts = (*IE) & (*IF);
+    byte_t requested_interupts = ((*IE) & (*IF)) & GB_INT_ALL_MASK;
 
     if (IME && requested_interupts != 0) {
         // One or more of the requested interrupts is enabled.
@@ -80,8 +77,6 @@ void gb_INTERRUPT_execute(void)
                     //add trace
                     abort();
                 }
-            }
-            if (isr) {
                 gb_CPU_interrupt(isr);
                 break;
             }
@@ -90,24 +85,127 @@ void gb_INTERRUPT_execute(void)
     }
 }
 
+void gb_INTERRUPT_update_timers(void) //byte_t ticks_delta) ) 
+{
+    gb_interrupt_data_s * const interrupts = &g_GB.interrupts;
 
-//should this be moved to DISPLAY?
+    uint64_t const total_ticks = interrupts->total_ticks; //shorthand
+
+    //
+    // DIV (Divisor) Timer 
+    // Always running. 
+    //
+    // Since `gb_INTERRUPT_update_timers` call is running after every CPU instruction.
+    // And no instruction is > 16 ticks, we can assume that at maximum one M-Clock
+    // tick has passed - so we don't calc the difference between total and next_update ticks.
+    //
+    bool need_DIV_update  = total_ticks >= interrupts->DIV_next_update_ticks;
+
+    if (need_DIV_update) {
+
+        (*GB_MMU_ACCESS_INTERNAL(GB_IO_DIV))++;
+        interrupts->DIV_next_update_ticks += GB_DIV_UPDATE_TICKS;
+    }
+
+    //
+    // TIMA/TAC/TMA Configurable Timer
+    //
+    // Check timer control:
+    gb_word_t const TAC    = *GB_MMU_ACCESS_INTERNAL(GB_IO_TAC);
+    bool const is_timer_on = BIT(TAC, 2);
+
+
+    if (is_timer_on) {
+        bool need_TIMA_update;
+        
+        //
+        // Detect if timer was just started
+        //
+        if (false == interrupts->TIMA_enabled) {
+
+            need_TIMA_update = true;
+            interrupts->TIMA_enabled = true;
+            interrupts->TIMA_next_update_ticks = total_ticks;
+        } else {
+
+            need_TIMA_update = total_ticks >= interrupts->TIMA_next_update_ticks;
+        }
+
+
+        if (need_TIMA_update) {
+
+            uint64_t tick_diff = total_ticks - interrupts->TIMA_next_update_ticks;
+            uint64_t interval, increment;
+
+            switch (BIT_RANGE_GET(TAC, 0, 1)) {
+
+            case 0b00:  interval = GB_MCLOCK_UPDATE_TICKS * 64; 
+                        increment = tick_diff >> 8;
+                        break; //   4 096 KHz
+
+            case 0b01:  interval = GB_MCLOCK_UPDATE_TICKS;       
+                        increment = tick_diff >> 2;
+                        break; // 262 133 KHz
+
+            case 0b10:  interval = GB_MCLOCK_UPDATE_TICKS * 4;   
+                        increment = tick_diff >> 4;
+                        break; //  65 536 KHz
+
+            case 0b11:  interval = GB_MCLOCK_UPDATE_TICKS * 16;  
+                        increment = tick_diff >> 6;
+                        break; //  16 384 KHz
+            default:
+                abort();
+            }
+            increment = 1; //this above is kind of stupid, diff is something else than you thought
+
+            gb_word_t * const TIMA = GB_MMU_ACCESS_INTERNAL(GB_IO_TIMA);
+
+            if (increment+(*TIMA) >= 0xFF) {
+
+                // on TIMA overflow, generate interrupt and reinitialize with TMA
+                gb_INTERRUPT_request(GB_INT_FLAG_TIMER);
+
+                *TIMA = *GB_MMU_ACCESS_INTERNAL(GB_IO_TMA);
+
+            } else {
+                StopIf(increment > 0xFF, abort(), "Terribly bad timer increment calculation!");
+                (*TIMA) += (gb_word_t)increment;
+            }
+            interrupts->TIMA_next_update_ticks += interval;
+        } 
+    } else {
+        interrupts->TIMA_enabled = false;
+    }
+
+    //
+    // How I avoided wraparound tracking with this one weird trick.
+    //
+    if (0x8000000000000000 & interrupts->total_ticks) {
+        //
+        // If the oldest bit is set in `total_ticks` 
+        // rebase all tracked uint64 tick values
+        // No value will be larger than total_ticks+0xFF.
+        // This way there's no need to put any wraparound logic above.
+        // 
+        interrupts->total_ticks &= 0x7FFFFFFFFFFFFFFF;
+        interrupts->TIMA_next_update_ticks &= 0x7FFFFFFFFFFFFFFF;
+        interrupts->DIV_next_update_ticks  &= 0x7FFFFFFFFFFFFFFF;
+    }
+
+}
+
+
 void gb_INTERRUPT_step(byte_t ticks_delta) 
 {
-    g_GB.interrupts.last_opcode_ticks = ticks_delta;
-    g_GB.interrupts.total_ticks += ticks_delta;
-    g_GB.interrupts.display_modeclock += ticks_delta;
 
+    gb_interrupt_data_s * const interrupts = &g_GB.interrupts;
+    interrupts->last_opcode_ticks = ticks_delta;
+    interrupts->total_ticks += ticks_delta;
+    interrupts->display_modeclock += ticks_delta;
 
-    //just for debug
-    gb_word_t const * const IE = GB_MMU_ACCESS_INTERNAL(GB_IO_IE);
-    if (((*IE) & GB_INT_FLAG_TIMER) != 0) {
-        gdbg_trace(g_GB.dbg, "timer enabled!");
-    }
-    if (((*IE) & GB_INT_FLAG_KEYPAD) != 0) {
-        gdbg_trace(g_GB.dbg, "keypad enabled!");
-    }
-
+    
+    gb_INTERRUPT_update_timers();
 
 
     // Get pointers to memory area with control registers
@@ -116,7 +214,7 @@ void gb_INTERRUPT_step(byte_t ticks_delta)
     gb_word_t * const STAT       = GB_MMU_ACCESS_INTERNAL(GB_IO_STAT);
     gb_word_t * const LY         = GB_MMU_ACCESS_INTERNAL(GB_IO_LY);
     bool const LCDC_enabled     = BIT_GET_N(*LCDC, 7);
-    bool const LCDC_toggled     = (LCDC_enabled != (g_GB.interrupts.display_mode != gb_LCDC_DISABLED));
+    bool const LCDC_toggled     = (LCDC_enabled != (interrupts->display_mode != gb_LCDC_DISABLED));
     /*
     LCDC_enabled| current_mode      | (mode eval) | result   | LCDC toggled?
     0           |  DISABLED         |    0        |    0!=0  |   false
@@ -132,19 +230,19 @@ void gb_INTERRUPT_step(byte_t ticks_delta)
         //
 
         if (LCDC_enabled) {
-            g_GB.interrupts.display_mode = gb_LCDC_HBLANK;
-            g_GB.interrupts.display_modeclock = 0;
+            interrupts->display_mode = gb_LCDC_HBLANK;
+            interrupts->display_modeclock = 0;
 
         }else{
-            g_GB.interrupts.display_mode = gb_LCDC_DISABLED;
-            g_GB.interrupts.display_line = 0;
-            g_GB.interrupts.display_modeclock = 0;
+            interrupts->display_mode = gb_LCDC_DISABLED;
+            interrupts->display_line = 0;
+            interrupts->display_modeclock = 0;
             *LY = 0x00;
         }
     }
 
-    uint32_t const mode_ticks       = g_GB.interrupts.display_modeclock;
-    gb_LCDC_mode const current_mode = g_GB.interrupts.display_mode;
+    uint32_t const mode_ticks       = interrupts->display_modeclock;
+    gb_LCDC_mode const current_mode = interrupts->display_mode;
     gb_LCDC_mode next_mode          = gb_LCDC_NO_CHANGE;
     byte_t STAT_event               = 0x00; //event for STAT interrupt
                               
@@ -236,13 +334,13 @@ the mode flag.
 
         gdbg_trace(g_GB.dbg,"DISPLAY::new_mode:%s,ticks:%u,LY:%hhu,STAT:0x%x,LCDC:0x%x\n", 
                    modename,
-                   g_GB.interrupts.display_modeclock,
+                   interrupts->display_modeclock,
                    *LY,
                 *STAT,
                 *LCDC);
         
-        g_GB.interrupts.display_mode = next_mode;
-        g_GB.interrupts.display_modeclock = 0;
+        interrupts->display_mode = next_mode;
+        interrupts->display_modeclock = 0;
 
 
         if (((*STAT) & 0b11) != (byte_t)current_mode) {

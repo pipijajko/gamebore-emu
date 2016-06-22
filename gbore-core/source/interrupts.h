@@ -41,6 +41,9 @@ When ISR is executed it's bit should be zeroed before setting IE
 #define GB_INT_FLAG_KEYPAD      0x10
 
 
+#define GB_INT_ALL_MASK (GB_INT_FLAG_VBLANK|GB_INT_FLAG_LCDC_STAT|GB_INT_FLAG_TIMER|GB_INT_FLAG_SERIAL|GB_INT_FLAG_KEYPAD)
+
+
 #define GB_INT_NUM             5
 
 /*IME - Interrupt Master Enable Flag(Write Only)
@@ -81,6 +84,11 @@ Interrupt Flag IF (R/W)
 #define GB_IO_IF 0xFF0F
 
 
+
+
+#define GB_IO_SB 0xFF01 //Serial Transfer Data
+#define GB_IO_SC 0xFF02 //Serial I/O Control Register (R/W)
+
 /*
 Timer Counter TIMA (R/W) 
     Incremetned by a clock requency specified by TAC. Generates interrupt on overflow.
@@ -88,7 +96,7 @@ Timer Counter TIMA (R/W)
 #define GB_IO_TIMA 0xFF05 
 
 /* Timer Modulo TMA (R/W) 
-When TIMA overflows, this data will be loaded. 
+    When TIMA overflows, this data will be loaded. 
 */
 #define GB_IO_TMA 0xFF06 
 
@@ -106,10 +114,15 @@ Tmer Clock Frequency (TAC)
 */
 #define GB_IO_TAC 0xFF07  
 
-
-#define GB_IO_SB 0xFF01 //Serial Transfer Data
-#define GB_IO_SC 0xFF02 //Serial I/O Control Register (R/W)
 #define GB_IO_DIV 0xFF04 //Divider register incremented 16384 times per sec. (R/W) Writing sets it to 0.
+
+
+
+
+#define GB_MCLOCK_UPDATE_TICKS 4
+#define GB_DIV_UPDATE_TICKS (GB_MCLOCK_UPDATE_TICKS*4) // 16384Hz - quarter of the base M-Clock speed (262,144Hz)
+
+#define CPU_TO_MCLOCK(ticks) ((ticks) << 2)
 
 
 /*
@@ -256,9 +269,20 @@ typedef struct gb_interrupt_data_s {
 
     bool    IME;
     gb_IME_transition IME_change;
-    uint32_t total_ticks;
-    uint32_t last_opcode_ticks;
+    uint64_t total_ticks; //ticks @ 4,194,304Hz
+    uint64_t last_opcode_ticks;
     
+
+    //
+    // pre-calculated values
+    // when `total_ticks` > *_next_update_ticks,
+    // the appropriate counter is incremented.
+    //
+    uint64_t DIV_next_update_ticks;
+    uint64_t TIMA_next_update_ticks;
+    bool     TIMA_enabled;
+
+
     uint32_t display_modeclock;
     uint32_t display_line;
     gb_LCDC_mode display_mode;
