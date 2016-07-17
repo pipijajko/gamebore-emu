@@ -263,11 +263,19 @@ __forceinline
 gb_INPUT_key_e internal_input_map_key(unsigned char key) {
     
     switch (key) {
+    case 'Q':
+        gbdbg_mute_print(g_GB.dbg, true); //hax
+        return gb_INPUT_none;
+    case 'q':
+        gbdbg_mute_print(g_GB.dbg, false);
+        return gb_INPUT_none;
+
     case 'z':
     case 'Z':            return gb_INPUT_A;
     case 'x':
     case 'X':            return gb_INPUT_B;
     default:             return gb_INPUT_none;
+
     }
 }
 
