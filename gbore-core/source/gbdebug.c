@@ -206,7 +206,7 @@ void gbdbg_CPU_trace(gb_debugdata_h handle, gb_opcode_t op, gb_dword_t d16,gb_dw
     }
     if (dbg->fp_out && dbg->log_enabled) {
         fprintf_s(dbg->fp_out, "%s", linebuf);
-        fflush(dbg->fp_out);
+        //fflush(dbg->fp_out);
     }
 }
 
@@ -221,11 +221,11 @@ gbdbg_CPU_dumpregs( gb_debugdata_h handle)
     struct gbdbg_context_s* dbg = (struct gbdbg_context_s*)handle.unused;
     struct gb_cpu_registers_s* rr = &dbg->instance->r;
     
+    if (!dbg->print_enabled && !dbg->log_enabled) return;
+
     byte_t const IE = *GB_MMU_ACCESS_INTERNAL(GB_IO_IE);
     byte_t const IF = *GB_MMU_ACCESS_INTERNAL(GB_IO_IF);
     byte_t const IME = (byte_t)dbg->instance->interrupts.IME;
-
-    if (!dbg->print_enabled && !dbg->log_enabled) return;
     
     offset0 = sprintf_s(linebuf, GBDBG_MAX_LEN, "AF:%04X, BC:%04X, DE:%04X, HL:%04X, SP:%04X, PC:%04X, IF:%02X, IE:%02X, IME:%u"
                         " FLGS: %c%c%c%c ",
@@ -241,7 +241,7 @@ gbdbg_CPU_dumpregs( gb_debugdata_h handle)
     }
     if (dbg->fp_out && dbg->log_enabled) {
         fprintf_s(dbg->fp_out, "%s", linebuf);
-        fflush(dbg->fp_out);
+        //fflush(dbg->fp_out);
     }
 }
 
@@ -252,7 +252,7 @@ gbdbg_mute_print(gb_debugdata_h handle, bool set_mute)
     assert(handle.unused);
     struct gbdbg_context_s* dbg = (struct gbdbg_context_s*)handle.unused;
     dbg->print_enabled = !set_mute;
-    dbg->log_enabled   = !set_mute;
+    dbg->log_enabled = !set_mute;
 
 }
 
