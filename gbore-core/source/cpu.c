@@ -195,7 +195,6 @@ byte_t gb_CPU_step(void)
     byte_t    cycles;
     gb_word_t   opcode = LOAD8(PC);
     gb_dword_t  d16    = LOAD16(PC + 1);
-
     gbdbg_CPU_dumpregs(g_GB.dbg);
     gbdbg_CPU_trace(g_GB.dbg, opcode, d16, PC);
 
@@ -437,8 +436,6 @@ byte_t gb_DAA(gb_opcode_t op, uint16_t d16) { //Decimal Adjust register A
     gb_word_t const v = A;
     gb_word_t addend = 0;
     bool carry = 0;
-
-
     if (GET_N()) { //DAA invoked after SUB or SBC
 
         addend  = GET_H() ? 0xFA : 0x00; //aka -0x06
@@ -731,7 +728,18 @@ byte_t gb_RST(gb_opcode_t op, uint16_t d16) {
 ////////////////////////////////////////////////
 
 
+byte_t gb_CCF(gb_opcode_t op, uint16_t d16) {
+    UNUSED(op, d16);
+    FLAGS(.CR = GET_C()?0:1);
+    return 4;
+}
 
+
+byte_t gb_SCF(gb_opcode_t op, uint16_t d16) {
+    UNUSED(op, d16);
+    FLAGS(.CR = 1);
+    return 4;
+}
 
 byte_t gb_NOP(gb_opcode_t op, uint16_t d16) {
     UNUSED(op, d16); 

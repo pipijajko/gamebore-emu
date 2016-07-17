@@ -48,6 +48,7 @@ OP_DEF("11 --- 110", 2, ALU_A_N)
 OP_DEF("00 100 111", 1, DAA)
 OP_DEF("00 101 111", 1, CPL)
 
+
 OP_DEF("00 0-- 111", 1, ROT_A)
 
 OP_DEF("11 --0 001", 1, POP_R)
@@ -65,6 +66,9 @@ OP_DEF("11 0-- 000", 1, RET_F)
 OP_DEF("11 --- 111", 1, RST)
 
 
+
+OP_DEF("00 111 111", 1, CCF)
+OP_DEF("00 110 111", 1, SCF)
 OP_DEF("00 000 000", 1, NOP)
 OP_DEF("11 110 011", 1, DI)
 OP_DEF("11 111 011", 1, EI)
