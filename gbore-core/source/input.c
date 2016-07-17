@@ -88,7 +88,7 @@ void gb_INPUT_step() {
         break;
 
     default:
-        gdbg_trace(g_GB.dbg, "Invalid Read selector!\n");
+        //gdbg_trace(g_GB.dbg, "Invalid Read selector!\n");
         return;
     }
     //assert(((*P1_JOYP) & (0xF)) == (*P1_JOYP));

@@ -73,16 +73,11 @@ int main(int argc, char *argv[])
     /////////////////////////////////////////////
     gb_initialize(ROM, ROM_size);
 
-    //
-    gbdbg_mute_print(g_GB.dbg, true);
-    
 
     //
     // Initialize program window 
     // Seed main program loop with IdleCallback
     //
-    
-    //add keypad!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     gbdisp_config_s configuration =
     {
         argc, argv,
