@@ -68,6 +68,7 @@ const char *gb_mem_section2text[] = {
 gb_word_t* gb_MMU_access(gb_addr_t const address, char const mode) 
 {
     gb_memory_unit_s *const u = &g_GB.m; //global 
+    
 
     if ('r' == mode) {
         //
@@ -93,11 +94,10 @@ gb_word_t* gb_MMU_access(gb_addr_t const address, char const mode)
             u->SIO.is_OAM_DMA_scheduled = true;
         }
 
-        //Temporary here
         if (address < 0x8000) {
             gdbg_trace(g_GB.dbg,"Invalid Memory Access! Write over ROM,@0x%04x\n", address);
-            //this is actually legit, for special operations, 
-            //assert(false);
+            static gb_word_t dummy_memory[2]; //to return for ROM write access
+            return dummy_memory;
         }
         
         //
@@ -143,7 +143,6 @@ gb_word_t* gb_MMU_access(gb_addr_t const address, char const mode)
 void gb_MMU_step() 
 {
     gb_memory_unit_s *const u = &g_GB.m; //global 
-
     if (u->SIO.is_OAM_DMA_scheduled) {
         u->SIO.is_OAM_DMA_scheduled = false;
 
