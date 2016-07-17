@@ -518,7 +518,7 @@ byte_t gb_PREFIX_CB(gb_opcode_t op, uint16_t d16) {
     assert(op == 0xCB);
     op = d16 & 0x00FF;   
 
-    bool      const rot_left    = Q((op) == DIR_LEFT);
+    bool      const rot_left    = Q(op) == DIR_LEFT;
     uint8_t   const rotated_bit = rot_left ? 7 : 0;  // Bit N to preserve in Carry
     gb_word_t const n           = Y(op);
     gb_word_t const v = REG8_READ(Z(op)); // Current register value
