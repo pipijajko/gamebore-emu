@@ -13,6 +13,7 @@
 # Build results
 _build/
 _int/
+_releases/
 [Dd]ebug/
 [Dd]ebugPublic/
 [Rr]elease/
@@ -23,6 +24,7 @@ bld/
 [Bb]in/
 [Oo]bj/
 [Ll]og/
+
 
 
 # Visual Studio 2015 cache/options directory

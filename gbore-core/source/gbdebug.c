@@ -50,25 +50,33 @@ gbdbg_initialize(gb_machine_s* instance, gb_debugdata_h* handle)
     gbdbg_context_s* dbg = calloc(1, sizeof(gbdbg_context_s));
 
     if (!handle || !dbg) { goto cleanup_generic; }
-    //
+    
     // for now, set all to defaults - add config params later
-    //
     dbg->print_enabled = true;
-    err = fopen_s(&dbg->fp_out, output_fn, "w");
-    if (err) goto cleanup_generic;
+    dbg->log_enabled   = true;
+
     //
     // Build static function table for decoders
     //
     gbdbg_build_decoder_table(dbg->op_decoders, GB_OPCODES_N);
+
+
     //
     // Read decoded opcodes from file for debug prints
+    // Even if this fails, proceed as usual - hence the internal errocode
     //
-    err = gbdbg_build_text_lookup("opcodes.txt", dbg->op_txtlookup, GB_OPCODES_N);
-    StopIf(err != 0, goto cleanup_file;, "Can't find opcodes.txt!");
-    dbg->instance = instance;
+    {
+        errno_t ierr = gbdbg_build_text_lookup("opcodes.txt", dbg->op_txtlookup, GB_OPCODES_N);
+        if (ierr) fprintf(stderr, "Can't load opcodes.txt! Error:%d", ierr);
 
-cleanup_file:
-    if (err && dbg->fp_out) fclose(dbg->fp_out);
+        err = fopen_s(&dbg->fp_out, output_fn, "w");
+        if (ierr) {
+            fprintf(stderr, "Could not create:%s, tracing to file disabled. Error:%d", output_fn, ierr);
+        }
+
+    }
+
+    dbg->instance = instance;
 
 cleanup_generic:
     if (err) { free(dbg); dbg = NULL; }
@@ -110,21 +118,21 @@ int gdbg_trace(gb_debugdata_h handle, char *fmtstr, ...)
 
 
 errno_t
-gbdbg_build_text_lookup(const char* filename, char* arr[], const size_t arr_size) 
+gbdbg_build_text_lookup(const char* filename, char* arr[], const size_t arr_items) 
 {
-    FILE* fp = NULL;
+    FILE * fp = NULL;
     errno_t e = 0;
     char linebuf[1024];
-    memset(arr, sizeof(char*), arr_size);
+    memset(arr, 0, arr_items * sizeof(char*));
 
     e = fopen_s(&fp, filename, "r");
     if (e || !fp) goto cleanup_file;
 
-    for (size_t i = 0; i < arr_size; i++) { //for each array entry read a line
+    for (size_t i = 0; i < arr_items; i++) { //for each array entry read a line
 
         if (fgets(linebuf, 1024, fp)) {
 
-            size_t slen = strlen(linebuf);
+            size_t const slen = strlen(linebuf);
             assert(slen);
             char*  sdbuf = calloc(slen, sizeof(char));
             if (!sdbuf) goto cleanup_array;
@@ -149,7 +157,7 @@ gbdbg_build_text_lookup(const char* filename, char* arr[], const size_t arr_size
     }
 
 cleanup_array:
-    if (e) gbdbg_free_text_lookup(arr, arr_size);
+    if (e) gbdbg_free_text_lookup(arr, arr_items);
 
 cleanup_file:
     if (fp) fclose(fp);
@@ -162,7 +170,7 @@ gbdbg_free_text_lookup(char*  arr[], const size_t arr_size)
 {
     if (arr)
         for (size_t i = 0; i < arr_size && arr[i]; i++) {
-            free(arr[i]);
+            if(NULL != arr[i]) free(arr[i]);
             arr[i] = NULL;
         }
 }
@@ -177,6 +185,7 @@ void gbdbg_CPU_trace(gb_debugdata_h handle, gb_opcode_t op, gb_dword_t d16,gb_dw
     __declspec (thread) static char linebuf[GBDBG_MAX_LEN]; //not thread-safe
     gb_bytebuf_t bufferdata;
     int offset0;
+
     struct gbdbg_context_s* dbg = (struct gbdbg_context_s*)handle.unused;
     if (!dbg->print_enabled && !dbg->log_enabled) return;
     //
@@ -252,7 +261,7 @@ gbdbg_mute_print(gb_debugdata_h handle, bool set_mute)
     assert(handle.unused);
     struct gbdbg_context_s* dbg = (struct gbdbg_context_s*)handle.unused;
     dbg->print_enabled = !set_mute;
-    dbg->log_enabled = !set_mute;
+    dbg->log_enabled = false;
 
 }
 

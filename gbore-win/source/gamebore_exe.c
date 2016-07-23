@@ -83,7 +83,7 @@ int main(int argc, char *argv[])
         argc, argv,
         .height = GB_SCREEN_H,
         .width = GB_SCREEN_W,
-        .size_modifier = 2,
+        .size_modifier = 4,
         .window_name = "GameBore",
         .callbacks.OnIdle = gb_disp_idle,
         .callbacks.OnRedraw = gb_disp_redraw,
@@ -101,7 +101,7 @@ int main(int argc, char *argv[])
 
 cleanup_generic:
 
-    printf("e:%d,errno:%d", e, errno);
+    fprintf(stderr, "initialization failed e:%d,errno:%d", e, errno);
     if (ROM) free(ROM);
     if (fp) fclose(fp);
     gb_destroy();

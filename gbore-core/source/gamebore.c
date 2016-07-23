@@ -32,6 +32,7 @@ void gb_initialize(void const* const cart_data, size_t const cart_data_size)
     gb_MMU_cartridge_init(cart_data, cart_data_size); //mmu should take ownership of cart_data
     gb_CPU_init();
     gb_INPUT_initialize(&g_GB.keypad);
+    gbdbg_mute_print(g_GB.dbg, true);
 }
 
 
