@@ -16,47 +16,6 @@ limitations under the License.
 #include "stdafx.h"
 #include "gamebore.h"
 
-
-typedef
-enum gb_jump_cond_e {
-    gb_jump_NZ = 0b00, //NotZero
-    gb_jump_Z  = 0b01, //Zero
-    gb_jump_NC = 0b10, //NotCarry
-    gb_jump_C  = 0b11, //Carry
-} gb_jump_cond_e;
-
-typedef 
-enum gb_alu_mode_e {
-    gb_ALU_ADD = 0b000,
-    gb_ALU_ADC = 0b001,
-    gb_ALU_SUB = 0b010,
-    gb_ALU_SBC = 0b011,
-    gb_ALU_AND = 0b100,
-    gb_ALU_XOR = 0b101,
-    gb_ALU_OR  = 0b110,
-    gb_ALU_CP  = 0b111,
-} gb_alu_mode_e;
-
-//Bit Rotations
-#define DIR_LEFT  0
-#define DIR_RIGHT 1
-
-/*
-Z80 Opcode Parsing Macros
-
-X(OP) - 1st octal digit, bits 7-6
-Y(OP) - 2nd octal digit, bits 5-3
-Z(OP) - 3rd octal digit, bits 2-0
-P(OP) - Y(OP) >> 1, i.e. bits 5-4
-Q(OP) - Y(OP) % 2, i.e. bit 3
-*/
-
-#define X(OP) (((OP) & 0b11000000) >> 6) //X(OP) - 1st octal digit, bits 7-6
-#define Y(OP) (((OP) & 0b00111000) >> 3) //Y(OP) - 2nd octal digit, bits 5-3
-#define Z(OP) (((OP) & 0b00000111) >> 0) //Z(OP) - 3rd octal digit, bits 2-0
-#define P(OP) (((OP) & 0b00110000) >> 4) //P(OP) - Y(OP) >> 1, i.e. bits 5-4
-#define Q(OP) (((OP) & 0b00001000) >> 3) //Q(OP) - Y(OP) % 2, i.e. bit 3
-
 /*
 Convenience macros
 */
@@ -76,33 +35,25 @@ Convenience macros
 #define SP (g_GB.r.SP)
 #define PC (g_GB.r.PC)
 
+/*
+Opcode parsing macros
+*/
 
-#define STOR8(ADDR) (*gb_MMU_store8((ADDR)))
-#define LOAD8(ADDR)  (*gb_MMU_load8((ADDR)))
+#define X(OP) (((OP) & 0b11000000) >> 6) //X(OP) - 1st octal digit, bits 7-6
+#define Y(OP) (((OP) & 0b00111000) >> 3) //Y(OP) - 2nd octal digit, bits 5-3
+#define Z(OP) (((OP) & 0b00000111) >> 0) //Z(OP) - 3rd octal digit, bits 2-0
+#define P(OP) (((OP) & 0b00110000) >> 4) //P(OP) - Y(OP) >> 1, i.e. bits 5-4
+#define Q(OP) (((OP) & 0b00001000) >> 3) //Q(OP) - Y(OP) % 2, i.e. bit 3
 
-#define STOR16(ADDR) (*gb_MMU_store16((ADDR)))
-#define LOAD16(ADDR)  (*gb_MMU_load16((ADDR)))
-
-
-//Zero
-#define GET_Z() (((F) & GB_FLAG_Z) == GB_FLAG_Z)
-
-//Substract FLAG
-#define GET_N() (((F) & GB_FLAG_N) == GB_FLAG_N)
-
-//Half-carry flag
-#define GET_H() (((F) & GB_FLAG_H) == GB_FLAG_H)
-
-//Carry flag
-#define GET_C() (((F) & GB_FLAG_C) == GB_FLAG_C)
-
-
+//
+// Helper macros/functions for setting CPU flags
+//
 typedef 
 struct flagsetter_s {
-    int8_t ZR, NG, HC, CR;
+    int8_t ZR, NG, HC, CR; //using 2 letter names to avoid collisions with macros
 }flagsetter_s;
 
-#define FLAG_OMIT ((int8_t)(-127)) //This is kind of hacky :/
+#define FLAG_OMIT ((int8_t)(-127)) 
 
 void 
 flags_setter(flagsetter_s f) {
@@ -123,16 +74,14 @@ flags_setter(flagsetter_s f) {
 
 #define FLAGS_ALL(ZR, NG, HC, CR) \
     flags_setter((flagsetter_s){ZR, NG, HC, CR})
-                                
+
+//Flag getters
+#define GET_Z() (((F) & GB_FLAG_Z) == GB_FLAG_Z)
+#define GET_N() (((F) & GB_FLAG_N) == GB_FLAG_N)
+#define GET_H() (((F) & GB_FLAG_H) == GB_FLAG_H)
+#define GET_C() (((F) & GB_FLAG_C) == GB_FLAG_C)
 
 
-//Half Carry Calculators
-//HC_ADD: TRUE if carry from bit 3
-//HC_SUB: TRUE if no borrow from bit 4.
-//HC_ADD16: TRUE if carry from bit 13
-#define HC_ADD(VAL, ADDEND)     (((((VAL) & 0xF) + ((ADDEND)    & 0xF)) & 0x10) == 0x10)
-#define HC_SUB(VAL, SUBTRAHEND)   (((VAL) & 0xF) < ((SUBTRAHEND)& 0xF)) 
-#define HC_ADD16(VAL, ADDEND) (((((VAL) & 0xFFF) + ((ADDEND) & 0xFFF)) & 0x1000) == 0x1000)
 
 //
 //Register maps
@@ -141,26 +90,6 @@ static gb_dword_t * const g_regmap_R[]  = { &BC, &DE, &HL, &SP }; //2bit
 static gb_dword_t * const g_regmap_R2[] = { &BC, &DE, &HL, &AF }; //2bit'
 static gb_word_t  * const g_regmap_D[]  = { &B, &C, &D, &E, &H,&L, NULL, &A }; //3bit
 #define HL_INDIRECT 0x6 
-
-//
-//Selectors for 8-bit registers, in case when `d` is 0x6, we need to load/store to memory.
-//
-#define REG8_WRITE(d) (*( ((d) != HL_INDIRECT) ? g_regmap_D[(d)] : gb_MMU_store8(HL) ))
-#define REG8_READ(d)  (*( ((d) != HL_INDIRECT) ? g_regmap_D[(d)] : gb_MMU_load8(HL)  ))
-
-
-//
-//
-// Selectors for 16-bit registers
-//
-#define RM1 1 // RegMap #1 selects one of: BC,DE,HL,SP registers
-#define RM2 2 // RegMap #2 selects one of: BC,DE,HL,AF registers
-
-#define REG16_RW(r, rmap) (*((rmap == RM1) ? g_regmap_R[(r)] : g_regmap_R2[(r)]))
-
-#define REG16_READ  REG16_RW
-#define REG16_WRITE REG16_RW
-
 
 
 void
@@ -510,7 +439,9 @@ byte_t gb_ROT_A(gb_opcode_t op, uint16_t d16) {
     return 4;
 }
 
-
+//
+// gb_PREFIX_CB implements all 256 CB prefixed opcodes
+//
 byte_t gb_PREFIX_CB(gb_opcode_t op, uint16_t d16) {
     //
     // Actual op-code is the second word after 0xCB, override to avoid typos:
@@ -708,10 +639,6 @@ byte_t gb_RET_F(gb_opcode_t op, uint16_t d16) {
 byte_t gb_RST(gb_opcode_t op, uint16_t d16) {
     UNUSED(d16);
 
-    // I'm at conflict with the documentation here.
-    // Which states I should put "present address" on stack,
-    // instead of "push address of the next instruction" (i.e. like CALL).
-    // For now I'm ignoring it and pretending this works like CALL,
 
     byte_t const N = Y(op) << 3;
     SP -= 2;
