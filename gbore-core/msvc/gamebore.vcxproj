@@ -204,8 +204,6 @@
     <ClInclude Include="..\source\input.h" />
     <ClInclude Include="..\source\interrupts.h" />
     <ClInclude Include="..\source\memory.h" />
-    <ClInclude Include="..\source\stdafx.h" />
-    <ClInclude Include="..\source\targetver.h" />
     <ClInclude Include="..\source\types.h" />
   </ItemGroup>
   <ItemGroup>
