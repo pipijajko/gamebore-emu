@@ -336,6 +336,8 @@ byte_t gb_ALU_A_D(gb_opcode_t op, uint16_t d16) {
     return (Z(op) == HL_INDIRECT) ? 8 : 4;
 }
 
+
+
 byte_t gb_DAA(gb_opcode_t op, uint16_t d16) { //Decimal Adjust register A
     UNUSED(op, d16);
     // Note:
@@ -362,39 +364,26 @@ byte_t gb_DAA(gb_opcode_t op, uint16_t d16) { //Decimal Adjust register A
         |   DEC     |    1    |     7-F      |   0    |     0-9      |   A0    |   1   |
         |   NEG     |    1    |     6-F      |   1    |     6-F      |   9A    |   1   |
         |------------------------------------------------------------------------------|
+        Unfortunately implementation had to be made uglier because of undefined
+        behavior which was not emulated properly (i.e. values out of the scope in table above).
     
     */
-
     gb_word_t const v = A;
     gb_word_t addend = 0;
-    bool carry = 0;
+    bool carry = false;
     if (GET_N()) { //DAA invoked after SUB or SBC
 
         addend  = GET_H() ? 0xFA : 0x00; //aka -0x06
         addend += GET_C() ? 0xA0 : 0x00; //aka -0x60
-        carry = (addend > 0x60);
-
-
-        //debug checks
-        StopIf(GET_H() && (v & 0x0F) < 0x06, abort(), "Expected value of lower digit >= 6");
-        StopIf(GET_C() && GET_H() && (v & 0xF0) < 0x70, abort(), "Expected value of upper digit >= 7");
-        StopIf(GET_C() && !GET_H() && (v & 0xF0) < 0x60, abort(), "Expected value of upper digit >= 6");
-
-        
-        
+        carry   = GET_C();
 
     } else { //DAA invoked after ADD or ADC
 
-        addend  = ((v & 0x0F) > 0x09 || GET_H()) ? 0x06 : 0x00;
-        addend += ((v & 0xF0) > 0x90 || GET_C()) ? 0x60 : 0x00;
-        carry = GET_C();
-        
-        //debug checks
-        StopIf(GET_H() && (v & 0x0F) > 0x03, abort(), "Expected value of lower digit < 3");
-        StopIf(GET_C() && !GET_H() && (v & 0xF0) > 0x2F, abort(), "Expected value of upper digit < 2");
-        StopIf(GET_C() && GET_H() && (v & 0xF0) > 0x3F, abort(), "Expected value of upper digit < 3");
+        addend  = ((v & 0x0F)  > 0x09  || GET_H()) ? 0x06 : 0x00; // +0x06
+        addend += ((v + addend) > 0x9F || GET_C()) ? 0x60 : 0x00; // +0x60
+
+        carry = GET_C() || 0x100 == (0x100 & ((uint16_t)v + (uint16_t)addend));
     }
-    
     A = v + addend;
 
     FLAGS(.ZR = !A,
