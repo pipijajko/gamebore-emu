@@ -131,6 +131,9 @@ byte_t gb_CPU_step(void)
 
     PC += g_GB.ops[opcode].size;
     cycles = g_GB.ops[opcode].handler(opcode, d16);
+
+    F &= 0xF0; //LS nibble of F register is always 0
+
     return cycles;
 }
 
