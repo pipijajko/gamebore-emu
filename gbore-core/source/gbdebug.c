@@ -67,11 +67,11 @@ gbdbg_initialize(gb_machine_s* instance, gb_debugdata_h* handle)
     //
     {
         errno_t ierr = gbdbg_build_text_lookup("opcodes.txt", dbg->op_txtlookup, GB_OPCODES_N);
-        if (ierr) fprintf(stderr, "Can't load opcodes.txt! Error:%d", ierr);
+        if (ierr) fprintf(stderr, "Can't load opcodes.txt! Error:%d\n", ierr);
 
-        err = fopen_s(&dbg->fp_out, output_fn, "w");
+        ierr = fopen_s(&dbg->fp_out, output_fn, "w");
         if (ierr) {
-            fprintf(stderr, "Could not create:%s, tracing to file disabled. Error:%d", output_fn, ierr);
+            fprintf(stderr, "Could not create:%s, tracing to file disabled. Error:%d\n", output_fn, ierr);
         }
 
     }

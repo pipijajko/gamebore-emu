@@ -191,7 +191,7 @@ void gb_MMU_cartridge_init(void const * cart_data, size_t const cart_data_size)
     gb_memory_unit_s *const u = &g_GB.m; //global instance
     memset(u, 0, sizeof(gb_memory_unit_s));
     
-    StopIf(!cart_data || !cart_data_size, abort(), "No cartridge!");
+    StopIf(!cart_data || !cart_data_size, exit(0), "No cartridge!\n");
 
     assert(cart_data);
     assert(cart_data_size);
