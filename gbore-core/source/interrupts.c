@@ -16,20 +16,6 @@ limitations under the License.
 #include "gamebore.h"
 
 
-
-#define GB_TICKS_HBLANK    204   // MODE 00 average (201-207 ticks)
-#define GB_TICKS_VBLANK    456   // MODE 01 (456 ticks per LY increment)
-#define GB_TICKS_OAM_READ  80    // MODE 10 average (77-83 ticks)
-#define GB_TICKS_VRAM_READ 171   // MODE 11 average (169-175 ticks)
-
-#define GB_TICKS_MINIMAL    GB_TICKS_OAM_READ
-
-#define GB_LY_MAX 153 //144 display lines + 10 lines for VBLANK
-
-#define GB_LY_INCREMENT(LYval) (((LYval) + 1) % (GB_LY_MAX + 1))
-
-
-
 void gb_INTERRUPT_request(byte_t const interrupt_signal_flag) 
 {
     gb_word_t *const IF = GB_MMU_ACCESS_INTERNAL(GB_IO_IF);
@@ -179,6 +165,7 @@ void gb_INTERRUPT_update_timers(void) //byte_t ticks_delta) )
 
     //
     // How I avoided wraparound tracking with this one weird trick.
+    // Temporary here.
     //
     if (0x8000000000000000 & interrupts->total_ticks) {
         //
