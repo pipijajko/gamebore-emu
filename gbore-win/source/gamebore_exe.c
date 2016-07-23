@@ -32,8 +32,25 @@ FILE *error_log = NULL;
 
 
 gbdisp_event_evt gb_disp_redraw;
-gbdisp_event_evt gb_disp_idle;
+gbdisp_event_evt gb_disp_prepare_frame;
 
+void usage() {
+    fprintf(stdout,
+            "\n\nUsage:\n"
+            "\tgamebore.exe romfile.gb\n"
+            "Controls:\n"
+                "\tArrows\t: D-PAD\n"
+                "\tA \t: Z,z\n"
+                "\tB \t: X,x\n"
+                "\tStart \t: HOME\n"
+                "\tSelect\t: END\n"
+            "Debug Controls:\n"
+                "\tCPU Tracing ON\t: q\n"
+                "\tCPU Tracing OF\t: Q\n\n\n"
+    );
+
+
+}
 
 int main(int argc, char *argv[])
 {
@@ -65,6 +82,8 @@ int main(int argc, char *argv[])
 
         ROM_size = fread_s(ROM, fsize, 1, fsize, fp);
         assert(ROM_size == fsize);
+    } else {
+        usage();
     }
 
 
@@ -85,7 +104,7 @@ int main(int argc, char *argv[])
         .width = GB_SCREEN_W,
         .size_modifier = 4,
         .window_name = "GameBore",
-        .callbacks.OnIdle = gb_disp_idle,
+        .callbacks.OnPrepareFrame = gb_disp_prepare_frame,
         .callbacks.OnRedraw = gb_disp_redraw,
         .callbacks.OnKeyInput = gb_INPUT_press_key,
         .callback_context = NULL,
@@ -100,8 +119,10 @@ int main(int argc, char *argv[])
     //gbdisp_destroy()
 
 cleanup_generic:
-
-    fprintf(stderr, "initialization failed e:%d,errno:%d", e, errno);
+    if (e) {
+        fprintf(stderr, "initialization failed e:%d,errno:%d\n", e, errno);
+        usage();
+    }
     if (ROM) free(ROM);
     if (fp) fclose(fp);
     gb_destroy();
@@ -110,21 +131,18 @@ cleanup_generic:
 }
 
 
-
-void gb_disp_idle(gbdisplay_h disp, void* context) 
-{
+void gb_disp_prepare_frame(gbdisplay_h disp, void* context) {
 
     UNUSED(context);
-    gb_machine_step(disp);
 
+    while (!gbdisp_is_buffer_ready(disp)) {
+        gb_machine_step(disp);
+    }
 }
 
 
 void gb_disp_redraw(gbdisplay_h disp, void* context) 
 {
-
-    UNUSED(context);
-    gbdisp_buffer_ready(disp);
-
+    UNUSED(context, disp);
 }
 

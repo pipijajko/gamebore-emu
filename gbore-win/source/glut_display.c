@@ -13,9 +13,12 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+#include <assert.h>
+
 #include <Windows.h>
 #include <gl/GL.h>
 #include <GL/glut.h>
+
 
 #include "gamebore.h"
 
@@ -35,6 +38,11 @@ typedef struct gbdisp_context_s {
     bool is_enabled; //changing this will stop and do a cleanup
     
     bool is_initialized;
+    
+
+    // for timer start/stop operations
+    uint64_t qpc_frequency;
+    uint64_t qpc_start; 
 
 } gbdisp_context_s;
 
@@ -43,7 +51,8 @@ typedef struct gbdisp_context_s {
 // Internal Functions declarations
 
 static gbdisp_context_s g_context;
-void internal_idle_evt(void);
+//void internal_idle_evt(void);
+void internal_main_timer_evt(int);
 void internal_display_evt(void);
 void internal_input_evt(unsigned char key, int x, int y);
 void internal_input_release_evt(unsigned char key, int x, int y);
@@ -54,13 +63,34 @@ void internal_texture_update(void);
 
 
 
-void internal_timer(int t) {
-    t;
-    glutPostRedisplay();
-    glutTimerFunc(REFRESH_INTERVAL, internal_timer, 0);
+
+#define CLK_TO_MS(c) ((c) / 1000)
+typedef uint64_t clk_us_t; //microsecond clock
+
+void internal_clock_start() {
+
+    LARGE_INTEGER pc;
+    assert(0ULL == g_context.qpc_start); // make sure we dont call start twice
+
+    QueryPerformanceCounter(&pc);
+    g_context.qpc_start = pc.QuadPart;
 }
 
+clk_us_t internal_clock_stop() {
 
+    LARGE_INTEGER pc;
+    QueryPerformanceCounter(&pc);
+    //
+    // To guard against loss-of-precision, we convert
+    // to microseconds *before* dividing by ticks-per-second.
+    //
+    uint64_t diff = (pc.QuadPart - g_context.qpc_start);
+    diff         *= 1000000;
+    diff         /= g_context.qpc_frequency;
+    
+    g_context.qpc_start = 0; //reset timer context
+    return diff;
+}
 
 errno_t 
 gbdisp_init(gbdisp_config_s cfg, gbdisplay_h *handle)
@@ -103,7 +133,7 @@ gbdisp_init(gbdisp_config_s cfg, gbdisplay_h *handle)
     glutInitWindowPosition(320, 320); //TODO: set screen center
     glutCreateWindow(win_name);
 
-    glutIdleFunc(internal_idle_evt);
+    //glutIdleFunc(internal_idle_evt);
     glutDisplayFunc(internal_display_evt);
     glutReshapeFunc(internal_reshape_window);
     glutKeyboardFunc(internal_input_evt);
@@ -114,7 +144,7 @@ gbdisp_init(gbdisp_config_s cfg, gbdisplay_h *handle)
 
     glutSetKeyRepeat(GLUT_KEY_REPEAT_OFF);
 
-    glutTimerFunc(REFRESH_INTERVAL, internal_timer, 1);
+    glutTimerFunc(REFRESH_INTERVAL, internal_main_timer_evt, 0);
     
     // Create a texture 
     glTexImage2D(GL_TEXTURE_2D, 0, 3, w , h, 0, GL_RGBA, GL_UNSIGNED_BYTE, d->screen_buffer);
@@ -128,6 +158,9 @@ gbdisp_init(gbdisp_config_s cfg, gbdisplay_h *handle)
     glEnable(GL_TEXTURE_2D);
 
 
+    LARGE_INTEGER frq;
+    QueryPerformanceFrequency(&frq); //QPF will never fail on OS >= Win XP, see msdn
+    d->qpc_frequency = frq.QuadPart;
     d->cfg = cfg;
     d->is_enabled = true; 
     *handle = d->self = (gbdisplay_h) { .unused = d };
@@ -135,14 +168,16 @@ gbdisp_init(gbdisp_config_s cfg, gbdisplay_h *handle)
     return 0;
 }
 
-void gbdisp_run(gbdisplay_h handle) {
+void gbdisp_run(gbdisplay_h handle) 
+{
     UNUSED(handle);
     glutMainLoop();
 }
     
 
 
-void gbdisp_putpixel(gbdisplay_h handle, uint8_t x, uint8_t y, gb_color_s c) {
+void gbdisp_putpixel(gbdisplay_h handle, uint8_t x, uint8_t y, gb_color_s c) 
+{
     UNUSED(handle); //for future implementations
 
     uint32_t const scr_w = g_context.cfg.width;
@@ -157,10 +192,17 @@ void gbdisp_putpixel(gbdisplay_h handle, uint8_t x, uint8_t y, gb_color_s c) {
 }
 
 
-void gbdisp_buffer_ready(gbdisplay_h handle) {
+void gbdisp_buffer_set_ready(gbdisplay_h handle) 
+{
     UNUSED(handle); //for future implementations
 
     g_context.screen_ready = true;
+}
+
+bool gbdisp_is_buffer_ready(gbdisplay_h handle) 
+{
+    UNUSED(handle); //for future implementations
+    return g_context.screen_ready;
 }
 
 
@@ -195,28 +237,42 @@ void internal_texture_update(void)
 void internal_display_evt(void) {
     // Clear framebuffer
     //glClear(GL_COLOR_BUFFER_BIT);
-    //if (g_context.cfg.callbacks.OnIdle) {
-    //    g_context.cfg.callbacks.OnIdle(g_context.self, g_context.cfg.callback_context);
-    //}
     // Draw pixels to texture
     internal_texture_update();// will this tear - no double buff
-    // Swap buffers!
     glutSwapBuffers();
 }
 
 
 
-void internal_idle_evt(void) {
 
-    if (g_context.cfg.callbacks.OnIdle) {
-        g_context.cfg.callbacks.OnIdle(g_context.self, g_context.cfg.callback_context);
+
+
+void internal_main_timer_evt(int t) {
+    UNUSED(t);
+    
+    internal_clock_start();
+
+    if (g_context.cfg.callbacks.OnPrepareFrame) {
+        g_context.cfg.callbacks.OnPrepareFrame(g_context.self, g_context.cfg.callback_context);
     }
+
     if (g_context.screen_ready) {
         internal_texture_update();
         g_context.screen_ready = false;
         glutPostRedisplay();
     }
+    clk_us_t const elapsed_time = internal_clock_stop();
 
+    //
+    // Schedule this function to render next frame 
+    //
+    int const wait_time = REFRESH_INTERVAL - (int)CLK_TO_MS(elapsed_time);
+
+    if (wait_time < 0) {
+        fprintf(stderr, "rendering took:%lluus, wait_time:%d ms\n", elapsed_time, wait_time);
+    }
+
+    glutTimerFunc(wait_time < 0 ? 0 : wait_time, internal_main_timer_evt, wait_time);
 }
 
 void internal_reshape_window(GLsizei w, GLsizei h)

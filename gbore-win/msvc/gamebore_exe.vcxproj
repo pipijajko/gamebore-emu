@@ -74,21 +74,25 @@
     <LinkIncremental>true</LinkIncremental>
     <OutDir>$(SolutionDir)_build\$(Platform)_$(Configuration)\</OutDir>
     <IntDir>$(ProjectDir)..\_build\$(Platform)_$(Configuration)\</IntDir>
+    <TargetName>gamebore</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
     <OutDir>$(SolutionDir)_build\$(Platform)_$(Configuration)\</OutDir>
     <IntDir>$(ProjectDir)..\_build\$(Platform)_$(Configuration)\</IntDir>
+    <TargetName>gamebore</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(SolutionDir)_build\$(Platform)_$(Configuration)\</OutDir>
     <IntDir>$(ProjectDir)..\_build\$(Platform)_$(Configuration)\</IntDir>
+    <TargetName>gamebore</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(SolutionDir)_build\$(Platform)_$(Configuration)\</OutDir>
     <IntDir>$(ProjectDir)..\_build\$(Platform)_$(Configuration)\</IntDir>
+    <TargetName>gamebore</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>

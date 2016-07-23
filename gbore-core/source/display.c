@@ -304,12 +304,16 @@ void gb_DISPLAY_render_sprite_line(gb_screen_state_s const*const s, gbdisplay_h 
 }
 
 
-void gb_DISPLAY_render_line(gbdisplay_h disp, byte_t ticks_delta) 
+uint8_t gb_DISPLAY_render_line(gbdisplay_h disp, byte_t ticks_delta) 
+/*
+Render currently processed line (according to LY register). 
+Return true if we reached last screen line, false otherwise
+*/
 {
     UNUSED(ticks_delta);
 
 
-    if (!gb_DISPLAY_can_scan()) return;
+    if (!gb_DISPLAY_can_scan()) return 0;
     gb_screen_state_s s = gb_DISPLAY_get_state();
 
     uint8_t const vram_y = (s.SCY + s.LY) % (GB_VRAM_H);
@@ -356,6 +360,7 @@ void gb_DISPLAY_render_line(gbdisplay_h disp, byte_t ticks_delta)
     }
 
     if ((GB_SCREEN_H - 1) == s.LY) { //done with last line, buffer switch
-        gbdisp_buffer_ready(disp);
+        gbdisp_buffer_set_ready(disp);
     }
+    return s.LY;
 }

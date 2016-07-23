@@ -37,7 +37,7 @@ typedef struct {
     
     struct{
         gb_input_handler_pfn OnKeyInput;
-        gbdisp_event_pfn OnIdle;
+        gbdisp_event_pfn OnPrepareFrame;
         gbdisp_event_pfn OnRedraw;
 
     }callbacks;
@@ -64,11 +64,12 @@ void    gbdisp_run(gbdisplay_h handle);
 // Not worth implementing multithreaded screen for this shit
 //
 void    gbdisp_putpixel(gbdisplay_h handle, uint8_t x, uint8_t y, gb_color_s c);
-void    gbdisp_buffer_ready(gbdisplay_h handle);
+void    gbdisp_buffer_set_ready(gbdisplay_h handle);
+bool    gbdisp_is_buffer_ready(gbdisplay_h handle);
 void    gbdisp_stop(gbdisplay_h handle);
 
 
-void gb_DISPLAY_render_line(gbdisplay_h disp, byte_t ticks_delta);
+uint8_t gb_DISPLAY_render_line(gbdisplay_h disp, byte_t ticks_delta);
 
 
 #define GB_SCREEN_W 160
@@ -82,8 +83,6 @@ void gb_DISPLAY_render_line(gbdisplay_h disp, byte_t ticks_delta);
 #define GB_TILE_BYTES (GB_TILE_WIDTH * 2) // 2 bytes per line
 #define GB_OBJ_X_OFFSET GB_TILE_WIDTH
 #define GB_OBJ_Y_OFFSET (GB_TILE_WIDTH * 2)
-
-
 
 
 
