@@ -291,15 +291,8 @@ void gb_INTERRUPT_step(byte_t ticks_delta)
     STAT_event |= is_coincident ? (GB_INT_STAT_LYLYC_FLAG) : (0);
     
     
-    // If check if we are expepcted to request STAT interrupt
+    // If check if we are expected to request STAT interrupt
     // for the LCD status events that occured:
-    /*
-    In addition, the register allows selection of 1 of the 4 types of interrupts from the LCD
-controller. Executing a write instruction for the match flag resets that flag but does not change
-the mode flag.
-    
-    */
-
     if (((*STAT) & STAT_event) != 0) {
 
         gb_INTERRUPT_request(GB_INT_FLAG_LCDC_STAT);
@@ -319,11 +312,7 @@ the mode flag.
         
 
         gdbg_trace(g_GB.dbg,"DISPLAY::new_mode:%s,ticks:%u,LY:%hhu,STAT:0x%x,LCDC:0x%x\n", 
-                   modename,
-                   interrupts->display_modeclock,
-                   *LY,
-                *STAT,
-                *LCDC);
+                   modename,interrupts->display_modeclock, *LY, *STAT, *LCDC);
         
         interrupts->display_mode = next_mode;
         interrupts->display_modeclock = 0;

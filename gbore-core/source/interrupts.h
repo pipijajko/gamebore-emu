@@ -95,8 +95,6 @@ typedef enum gb_IME_transition
 
 typedef struct gb_interrupt_data_s
 {
-
-
     bool    IME;
     gb_IME_transition IME_change;
     uint64_t total_ticks; //ticks @ 4,194,304Hz
