@@ -24,6 +24,9 @@ void gb_INTERRUPT_request(byte_t const interrupt_signal_flag)
            "invalid INT signal:%hhu", interrupt_signal_flag);
 
     *IF |= interrupt_signal_flag; //Set Interrupt Request Flag
+    
+    // In case if the CPU is halted, clear the `is_waiting` flag:
+    g_GB.interrupts.HALT_is_waiting_for_ISR = false;
 
 }
 

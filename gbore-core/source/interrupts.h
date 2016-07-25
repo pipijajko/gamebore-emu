@@ -95,11 +95,20 @@ typedef enum gb_IME_transition
 
 typedef struct gb_interrupt_data_s
 {
+
+    // 2 variables to track HALTed CPU state
+    // Upon HALT opcode, both are set to TRUE, CPU waits for interrupt.
+    // Emulator will loop on HALT command until the `is_waiting_for_ISR` is set to FALSE
+    // by a Interupt Service Routine.
+
+    bool    HALT; 
+    bool    HALT_is_waiting_for_ISR;
+
+
     bool    IME;
     gb_IME_transition IME_change;
     uint64_t total_ticks; //ticks @ 4,194,304Hz
     uint64_t last_opcode_ticks;
-
 
     //
     // pre-calculated values

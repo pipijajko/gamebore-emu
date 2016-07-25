@@ -9,6 +9,15 @@
 // When parsing an opcode, if '1's and '0's in the `matching_pattern` match,
 // ('-' can be either '1' or '0') then the handler for `instruction_name` will be invoked.
 
+//
+// Avoiding collisions:
+//
+// gb_build_decoder_table() will fail if more than one pattern will match any particular opcode.
+// In the rare case, when a pattern collides with pattern for another opcode, OP_OVR can be used to
+// override an existing handler. OP_OVR are processed after OP_DEFs.
+
+
+
 
 OP_DEF("00 001 000", 3, LD_INDIRECT_NN_SP)
 OP_DEF("00 --0 001", 3, LD_R_NN)
@@ -20,11 +29,9 @@ OP_DEF("00 --0 011", 1, INC_R)
 OP_DEF("00 --1 011", 1, DEC_R)
 OP_DEF("00 --1 001", 1, ADD_HL_R)
 
-//OP_DEF("11 101 000", 2, ADD_SP_N)
-//OP_DEF("11 111 000", 2, LD_HL_SP_N)
-
-
-
+OP_DEF("11 101 000", 2, ADD_SP_N)
+OP_DEF("11 111 000", 2, LD_HL_SP_N)
+OP_DEF("11 111 001", 1, LD_SP_HL)
 
 
 OP_DEF("11 101 010", 3, LD_INDIRECT_NN_A)
@@ -58,6 +65,7 @@ OP_DEF("00 011 000", 2, JR_N)
 
 OP_DEF("11 0-- 010", 3, JP_F_NN)
 OP_DEF("11 000 011", 3, JP_N)
+
 OP_DEF("11 101 001", 1, JP_INDIRECT_HL)
 OP_DEF("11 001 101", 3, CALL_N)
 OP_DEF("11 0-- 100", 3, CALL_F_N)
@@ -65,14 +73,12 @@ OP_DEF("11 0-1 001", 1, RET)
 OP_DEF("11 0-- 000", 1, RET_F)
 OP_DEF("11 --- 111", 1, RST)
 
-
-
 OP_DEF("00 111 111", 1, CCF)
 OP_DEF("00 110 111", 1, SCF)
 OP_DEF("00 000 000", 1, NOP)
 OP_DEF("11 110 011", 1, DI)
 OP_DEF("11 111 011", 1, EI)
-
+OP_OVR("01 110 110", 0, HALT) //Override LD (HL) (HL) - which is not a valid instruction
 
 OP_DEF("11 001 011", 2, PREFIX_CB)
 

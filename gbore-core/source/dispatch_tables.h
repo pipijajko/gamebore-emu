@@ -32,7 +32,8 @@ gb_populate_opcode_slots(
     gb_opcode_handler_pfn     handler,
     byte_t               op_size,
     struct gb_instruction_s slots[],
-    const size_t         slots_n
+    const size_t         slots_n,
+    const bool           is_override_allowed
 );
 
 void

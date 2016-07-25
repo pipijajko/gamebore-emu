@@ -124,6 +124,7 @@ byte_t gb_CPU_step(void)
     byte_t    cycles;
     gb_word_t   opcode = LOAD8(PC);
     gb_dword_t  d16    = LOAD16(PC + 1);
+    
     gbdbg_CPU_dumpregs(g_GB.dbg);
     gbdbg_CPU_trace(g_GB.dbg, opcode, d16, PC);
 
@@ -132,6 +133,7 @@ byte_t gb_CPU_step(void)
     PC += g_GB.ops[opcode].size;
     cycles = g_GB.ops[opcode].handler(opcode, d16);
 
+    //
     F &= 0xF0; //LS nibble of F register is always 0
 
     return cycles;
@@ -143,12 +145,13 @@ byte_t gb_CPU_interrupt(gb_addr_t vector)
            abort(), 
            "Invalid interrupt vector 0x%x!", vector);
     
-    gdbg_trace(g_GB.dbg, "!!!INTERRUPT!!! @0x%hX", vector);
+    gdbg_trace(g_GB.dbg, "!!!INTERRUPT!!! @0x%hX\n", vector);
     
 
     SP -= 2;         //Push address of next instruction onto stack and thenjump to address nn.
     STOR16(SP) = PC; //PC is already moved 
     PC = vector;
+
     return 12;
     
 }
@@ -158,8 +161,12 @@ byte_t gb_CPU_interrupt(gb_addr_t vector)
 //GMB 8bit - Loadcommands
 ////////////////////////////////////////////////
 
+
+
 byte_t gb_LD_D_D(gb_opcode_t op, uint16_t d16) {
     UNUSED(d16); 
+    assert(0b011110110 != op); //make sure OP_OVR works
+
     REG8_WRITE(Y(op)) = REG8_READ(Z(op));
     return (Y(op) == HL_INDIRECT || Z(op) == HL_INDIRECT) ? (12) : (4);
 }
@@ -277,6 +284,13 @@ byte_t gb_LD_INDIRECT_NN_SP(gb_opcode_t op, uint16_t d16) {
     UNUSED(op);
     STOR16(d16) = SP; return 20; //pandoc says 12?
 }
+
+
+byte_t gb_LD_SP_HL(gb_opcode_t op, uint16_t d16) {
+    UNUSED(op, d16);
+    SP = HL;  return 8;
+}
+
 
 ////////////////////////////////////////////////
 //GMB 8bit - ALU
@@ -524,7 +538,6 @@ byte_t gb_DEC_R(gb_opcode_t op, uint16_t d16) {
 
 byte_t gb_ADD_HL_R(gb_opcode_t op, uint16_t d16) {
     UNUSED(d16);
-    
     gb_dword_t v = (*g_regmap_R[P(op)]);
     gb_dword_t r = HL + v;
     FLAGS(.NG=0, 
@@ -533,6 +546,33 @@ byte_t gb_ADD_HL_R(gb_opcode_t op, uint16_t d16) {
     HL = r;
     return 8;
 }
+
+byte_t gb_ADD_SP_N(gb_opcode_t op, uint16_t d16) {
+    UNUSED(op);
+    int8_t     n = (int8_t)d16; //signed 8bit
+    gb_dword_t r = SP + n;
+    
+    FLAGS(.ZR = 0,
+          .NG = 0,
+          .HC = HC_ADD16(SP, n),
+          .CR = (r < SP));
+    SP = r;
+    return 16;
+}
+
+byte_t gb_LD_HL_SP_N(gb_opcode_t op, uint16_t d16) {
+    UNUSED(op);
+    int8_t     n = (int8_t)d16; //signed 8bit
+    gb_dword_t r = SP + n;
+
+    FLAGS(.ZR = 0,
+          .NG = 0,
+          .HC = HC_ADD16(SP, n),
+          .CR = (r < SP));
+    HL = r;
+    return 12;
+}
+
 
 ////////////////////////////////////////////////
 // Jump Commands / Flow Control
@@ -679,5 +719,40 @@ byte_t gb_EI(gb_opcode_t op, uint16_t d16) {
     UNUSED(op, d16);
     g_GB.interrupts.IME = true;
     gb_INTERRUPT_request(0);
+    return 4;
+}
+
+byte_t gb_HALT(gb_opcode_t op, uint16_t d16) {
+    UNUSED(d16, op);
+    /*
+    This is a very special operation, it halts the CPU until next interrupt fires.
+
+    Upon first invocation of HALT opcode, two flags are set to TRUE:
+        * `g_GB.interrupts.HALT`
+        * `g_GB.interrupts.HALT_is_waiting_for_ISR`
+    
+    The program counter will stay at the HALT instruction (see HALT's OP_DEF)
+    until the flag `HALT_is_waiting_for_ISR` is cleared by 
+
+    */
+
+    if (false == g_GB.interrupts.HALT) {
+        
+        // We enter halted state:
+
+        g_GB.interrupts.HALT = true;
+        g_GB.interrupts.HALT_is_waiting_for_ISR = true;
+
+    } else {
+        // We are in HALTED state, the Program Counter will not move
+        // until an ISR is executed.
+        
+        if (false == g_GB.interrupts.HALT_is_waiting_for_ISR) {
+
+            // ISR was invoked, we can resume the CPU:
+            PC += 1;
+            g_GB.interrupts.HALT = false;;
+        }
+    }
     return 4;
 }
