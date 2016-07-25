@@ -186,28 +186,29 @@ void gb_MMU_step()
 }
 
 
-void gb_MMU_cartridge_init(void const * cart_data, size_t const cart_data_size)
-{
+void gb_MMU_cartridge_init(void const * cart_data, size_t const cart_data_size) {
     gb_memory_unit_s *const u = &g_GB.m; //global instance
     memset(u, 0, sizeof(gb_memory_unit_s));
-    
-    StopIf(!cart_data || !cart_data_size, exit(0), "No cartridge!\n");
 
-    assert(cart_data);
-    assert(cart_data_size);
+    //if (!cart_data || !cart_data_size) return;
 
     u->source.buffer = cart_data;
-    u->source.size   = cart_data_size;
+    u->source.size = cart_data_size;
     //
     // Copy ROM Bank #0 of cartdidge to main memory
     //
-    memcpy_s(&u->mem[0x0000], GB_TOTAL_MEMSIZE, u->source.buffer, GB_MEMBANK_SIZE);
+    if (NULL != u->source.buffer){
 
-    if (u->source.size > GB_MEMBANK_SIZE) {
-        //cartridge has multiple banks
-        // Copy Switchable ROM Bank of cartdidge to main memory
-        memcpy_s(&u->mem[GB_SWITCHBANK_OFFSET], (GB_TOTAL_MEMSIZE - GB_SWITCHBANK_OFFSET),
-                 &u->source.buffer[GB_SWITCHBANK_OFFSET], GB_MEMBANK_SIZE);
+        memcpy_s(&u->mem[0x0000], GB_TOTAL_MEMSIZE, u->source.buffer, GB_MEMBANK_SIZE);
+
+        if (u->source.size > GB_MEMBANK_SIZE) {
+            //cartridge has multiple banks
+            // Copy Switchable ROM Bank of cartdidge to main memory
+            memcpy_s(&u->mem[GB_SWITCHBANK_OFFSET], 
+                    (GB_TOTAL_MEMSIZE - GB_SWITCHBANK_OFFSET),
+                    &u->source.buffer[GB_SWITCHBANK_OFFSET], 
+                    GB_MEMBANK_SIZE);
+        }
     }
 
     u->source.Type = u->mem[GB_OFFSET_CART];
