@@ -538,8 +538,8 @@ byte_t gb_DEC_R(gb_opcode_t op, uint16_t d16) {
 
 byte_t gb_ADD_HL_R(gb_opcode_t op, uint16_t d16) {
     UNUSED(d16);
-    gb_dword_t v = (*g_regmap_R[P(op)]);
-    gb_dword_t r = HL + v;
+    gb_dword_t const v = (*g_regmap_R[P(op)]);
+    gb_dword_t const r = HL + v;
     FLAGS(.NG=0, 
           .HC=HC_ADD16(HL, v), 
           .CR=(r < HL));
@@ -549,26 +549,35 @@ byte_t gb_ADD_HL_R(gb_opcode_t op, uint16_t d16) {
 
 byte_t gb_ADD_SP_N(gb_opcode_t op, uint16_t d16) {
     UNUSED(op);
-    int8_t     n = (int8_t)d16; //signed 8bit
-    gb_dword_t r = SP + n;
-    
+    uint8_t    const u = (uint8_t)d16;
+    int8_t     const n = (int8_t)d16; //signed 8bit immediate
+    gb_dword_t const r = SP + n;
+
+
+    // C & H flags are calculated like when adding 8 bit values:
+    // add immediate byte (as unsigned) to SP's lower byte.
+
     FLAGS(.ZR = 0,
           .NG = 0,
-          .HC = HC_ADD16(SP, n),
-          .CR = (r < SP));
+          .HC = HC_ADD(SP, u),
+          .CR = ((SP + u) & 0xFF) < (SP & 0xFF));
     SP = r;
     return 16;
 }
 
 byte_t gb_LD_HL_SP_N(gb_opcode_t op, uint16_t d16) {
     UNUSED(op);
-    int8_t     n = (int8_t)d16; //signed 8bit
-    gb_dword_t r = SP + n;
+    uint8_t    const u = (uint8_t)d16; 
+    int8_t     const n = (int8_t)d16; //signed 8bit
+    gb_dword_t const r = SP + n;
+
+    // C & H flags are calculated like when adding 8 bit values:
+    // add immediate byte (as unsigned) to SP's lower byte.
 
     FLAGS(.ZR = 0,
           .NG = 0,
-          .HC = HC_ADD16(SP, n),
-          .CR = (r < SP));
+          .HC = HC_ADD(SP, u),
+          .CR = ((SP+u) & 0xFF) < (SP & 0xFF));
     HL = r;
     return 12;
 }
@@ -670,8 +679,6 @@ byte_t gb_RET_F(gb_opcode_t op, uint16_t d16) {
 
 byte_t gb_RST(gb_opcode_t op, uint16_t d16) {
     UNUSED(d16);
-
-
     byte_t const N = Y(op) << 3;
     SP -= 2;
     STOR16(SP) = PC;
