@@ -17,9 +17,7 @@ limitations under the License.
 #include "gamebore.h"
 
 /*
-Convenience macros
-*/
-
+Convenience macros*/
 #define F  (g_GB.r.F)
 #define A  (g_GB.r.A)
 #define B  (g_GB.r.B)
@@ -36,34 +34,27 @@ Convenience macros
 #define PC (g_GB.r.PC)
 
 /*
-Opcode parsing macros
-*/
-
+Opcode parsing macros*/
 #define X(OP) (((OP) & 0b11000000) >> 6) //X(OP) - 1st octal digit, bits 7-6
 #define Y(OP) (((OP) & 0b00111000) >> 3) //Y(OP) - 2nd octal digit, bits 5-3
 #define Z(OP) (((OP) & 0b00000111) >> 0) //Z(OP) - 3rd octal digit, bits 2-0
 #define P(OP) (((OP) & 0b00110000) >> 4) //P(OP) - Y(OP) >> 1, i.e. bits 5-4
 #define Q(OP) (((OP) & 0b00001000) >> 3) //Q(OP) - Y(OP) % 2, i.e. bit 3
 
-//
-// Helper macros/functions for setting CPU flags
-//
+/*
+Helper macros/functions for setting CPU flags */
 typedef 
 struct flagsetter_s {
     int8_t ZR, NG, HC, CR; //using 2 letter names to avoid collisions with macros
 }flagsetter_s;
-
 #define FLAG_OMIT ((int8_t)(-127)) 
 
-void 
-flags_setter(flagsetter_s f) {
-
+void flags_setter(flagsetter_s f) {
     if (f.ZR != FLAG_OMIT) SETCLR((f.ZR), F, GB_FLAG_Z);
     if (f.NG != FLAG_OMIT) SETCLR((f.NG), F, GB_FLAG_N);
     if (f.HC != FLAG_OMIT) SETCLR((f.HC), F, GB_FLAG_H);
     if (f.CR != FLAG_OMIT) SETCLR((f.CR), F, GB_FLAG_C);
 }
-
 
 #define FLAGS(...) \
     flags_setter((flagsetter_s){.ZR = FLAG_OMIT, \
@@ -71,34 +62,25 @@ flags_setter(flagsetter_s f) {
                                 .HC = FLAG_OMIT, \
                                 .CR = FLAG_OMIT, __VA_ARGS__})
 
-
 #define FLAGS_ALL(ZR, NG, HC, CR) \
     flags_setter((flagsetter_s){ZR, NG, HC, CR})
 
-//Flag getters
+/*
+Flag getters*/
 #define GET_Z() (((F) & GB_FLAG_Z) == GB_FLAG_Z)
 #define GET_N() (((F) & GB_FLAG_N) == GB_FLAG_N)
 #define GET_H() (((F) & GB_FLAG_H) == GB_FLAG_H)
 #define GET_C() (((F) & GB_FLAG_C) == GB_FLAG_C)
-
-
-
-//
-//Register maps
-//
+/*
+Register maps*/
+#define HL_INDIRECT 0x6 //g_regmap_D index for (HL)
+#define HL_INDIRECT_DUMMY NULL
 static gb_dword_t * const g_regmap_R[]  = { &BC, &DE, &HL, &SP }; //2bit
 static gb_dword_t * const g_regmap_R2[] = { &BC, &DE, &HL, &AF }; //2bit'
-static gb_word_t  * const g_regmap_D[]  = { &B, &C, &D, &E, &H,&L, NULL, &A }; //3bit
-#define HL_INDIRECT 0x6 
+static gb_word_t  * const g_regmap_D[]  = { &B, &C, &D, &E, &H,&L, HL_INDIRECT_DUMMY, &A }; //3bit
 
-
-void
-gb_CPU_init(void)
+void gb_CPU_init(void)/*Initialize CPU Registers*/
 {
-    /*
-    Initiaze CPU Registers
-    */
-
     switch (g_GB.gb_model) { //different init of AF register depending on device model
     case gb_dev_Uninitialized:
         //memory has to be initialized first
@@ -118,7 +100,6 @@ gb_CPU_init(void)
 }
 
 
-
 byte_t gb_CPU_step(void)
 {
     byte_t    cycles;
@@ -129,44 +110,29 @@ byte_t gb_CPU_step(void)
     gbdbg_CPU_trace(g_GB.dbg, opcode, d16, PC);
 
     assert(g_GB.ops[opcode].handler);
-
     PC += g_GB.ops[opcode].size;
     cycles = g_GB.ops[opcode].handler(opcode, d16);
-
-    //
-    F &= 0xF0; //LS nibble of F register is always 0
-
+    F &= 0xF0; //Always clear LS nibble of F register
     return cycles;
 }
 
+
 byte_t gb_CPU_interrupt(gb_addr_t vector)
 {
-    StopIf(vector < 0x0040 || vector > 0x0060, 
-           abort(), 
-           "Invalid interrupt vector 0x%x!", vector);
-    
-    gdbg_trace(g_GB.dbg, "!!!INTERRUPT!!! @0x%hX\n", vector);
-    
+    StopIf(vector < 0x0040 || vector > 0x0060, abort(), "Invalid interrupt vector 0x%x!", vector);
 
+    gdbg_trace(g_GB.dbg, "!!!INTERRUPT!!! @0x%hX\n", vector);
     SP -= 2;         //Push address of next instruction onto stack and thenjump to address nn.
     STOR16(SP) = PC; //PC is already moved 
     PC = vector;
-
     return 12;
     
 }
-
-
 ////////////////////////////////////////////////
 //GMB 8bit - Loadcommands
 ////////////////////////////////////////////////
-
-
-
 byte_t gb_LD_D_D(gb_opcode_t op, uint16_t d16) {
     UNUSED(d16); 
-    assert(0b011110110 != op); //make sure OP_OVR works
-
     REG8_WRITE(Y(op)) = REG8_READ(Z(op));
     return (Y(op) == HL_INDIRECT || Z(op) == HL_INDIRECT) ? (12) : (4);
 }
@@ -198,19 +164,15 @@ byte_t gb_LD_INDIRECT_R_A(gb_opcode_t op, uint16_t d16) {
     STOR8(*g_regmap_R[P(op)]) = A; return 8;
 }
 
-
-
 byte_t gb_LDH_A_N(gb_opcode_t op, uint16_t d16) { //-----------Read from IO port
     UNUSED(op);
     A = LOAD8(0xFF00 + (d16 & 0xFF)); return 12;
 }
 
-
 byte_t gb_LDH_N_A(gb_opcode_t op, uint16_t d16) { //------------Write to IO port
     UNUSED(op);
     STOR8(0xFF00 + (d16 & 0xFF)) = A; return 12;
 }
-
 
 byte_t gb_LD_A_INDIRECT_C(gb_opcode_t op, uint16_t d16) { //-----------Read from IO port
     UNUSED(op, d16);
@@ -223,13 +185,11 @@ byte_t gb_LD_INDIRECT_C_A(gb_opcode_t op, uint16_t d16) { //------------Write to
     STOR8(0xFF00 + C) = A; return 8;
 }
 
-
 //Not implemented yet:
 //byte_t gb_LDH_A_NN(gb_opcode_t op, uint16_t d16) { //-----------Read from IO port
 //    UNUSED(op);
 //    A = LOAD8(0xFF00 + (d16 & 0xFF)); return 8;
 //}
-
 
 //byte_t gb_LDH_NN_A(gb_opcode_t op, uint16_t d16) { //------------Write to IO port
 //    UNUSED(op);
@@ -264,34 +224,28 @@ byte_t gb_LDD_A_INDIRECT_HL(gb_opcode_t op, uint16_t d16) {
 byte_t gb_PUSH_R(gb_opcode_t op, uint16_t d16) {
     UNUSED(d16); 
     SP -= 2; 
-    STOR16(SP) = (*g_regmap_R2[P(op)]);
-    return 16;
+    STOR16(SP) = (*g_regmap_R2[P(op)]); return 16;
 }
 
 byte_t gb_POP_R(gb_opcode_t op, uint16_t d16) {
     UNUSED(d16);
     (*g_regmap_R2[P(op)]) = LOAD16(SP);
-    SP += 2;
-    return 12;
+    SP += 2; return 12;
 }
 
 byte_t gb_LD_R_NN(gb_opcode_t op, uint16_t d16) {
     *g_regmap_R[P(op)] = d16; return 12;
 }
 
-
 byte_t gb_LD_INDIRECT_NN_SP(gb_opcode_t op, uint16_t d16) {
     UNUSED(op);
     STOR16(d16) = SP; return 20; //pandoc says 12?
 }
 
-
 byte_t gb_LD_SP_HL(gb_opcode_t op, uint16_t d16) {
     UNUSED(op, d16);
     SP = HL;  return 8;
 }
-
-
 ////////////////////////////////////////////////
 //GMB 8bit - ALU
 ////////////////////////////////////////////////
@@ -309,7 +263,6 @@ byte_t gb_INC_D(gb_opcode_t op, uint16_t d16) {
 byte_t gb_DEC_D(gb_opcode_t op, uint16_t d16) {
     UNUSED(d16);
     byte_t v = REG8_WRITE( Y(op) )--;
-    
     FLAGS(.ZR = (v == 0x1),
           .NG = 1,
           .HC = HC_SUB(v, 1));
@@ -350,8 +303,6 @@ byte_t gb_ALU_A_D(gb_opcode_t op, uint16_t d16) {
     return (Z(op) == HL_INDIRECT) ? 8 : 4;
 }
 
-
-
 byte_t gb_DAA(gb_opcode_t op, uint16_t d16) { //Decimal Adjust register A
     UNUSED(op, d16);
     // Note:
@@ -380,7 +331,6 @@ byte_t gb_DAA(gb_opcode_t op, uint16_t d16) { //Decimal Adjust register A
         |------------------------------------------------------------------------------|
         Unfortunately implementation had to be made uglier because of undefined
         behavior which was not emulated properly (i.e. values out of the scope in table above).
-    
     */
     gb_word_t const v = A;
     gb_word_t addend = 0;
@@ -406,27 +356,23 @@ byte_t gb_DAA(gb_opcode_t op, uint16_t d16) { //Decimal Adjust register A
     return 4;
 }
 
-
 byte_t gb_CPL(gb_opcode_t op, uint16_t d16) { //Complement A
     UNUSED(op, d16);
     A = ~A;
-
     FLAGS(.NG = 1,
           .HC = 1);
     return 4;
 }
+
 ////////////////////////////////////////////////
 //GMB Singlebit Operation Commands
 //GMB Rotate & Shift
 ////////////////////////////////////////////////
-
-
 byte_t gb_ROT_A(gb_opcode_t op, uint16_t d16) {
     UNUSED(d16);
     gb_word_t const v    = A;
     gb_word_t const bit4 = BIT_GET_N(op, 4); // bit4: 0-RdCA 1-RdA
     uint8_t  rotated_bit;
-    
     if(Q(op) == DIR_LEFT){ // bit3: direction
 
         if (!bit4) A = BIT_RL_8(v);         // RLCA
@@ -440,14 +386,12 @@ byte_t gb_ROT_A(gb_opcode_t op, uint16_t d16) {
         rotated_bit = 0;
     }
     FLAGS_ALL(0, 0, 0, BIT_GET_N(v, rotated_bit));
-
-
     return 4;
 }
 
-//
-// gb_PREFIX_CB implements all 256 CB prefixed opcodes
-//
+////////////////////////////////////////////////
+// All 256 0xCB prefixed opcodes implementation:
+////////////////////////////////////////////////
 byte_t gb_PREFIX_CB(gb_opcode_t op, uint16_t d16) {
     //
     // Actual op-code is the second word after 0xCB, override to avoid typos:
@@ -460,9 +404,7 @@ byte_t gb_PREFIX_CB(gb_opcode_t op, uint16_t d16) {
     gb_word_t const n           = Y(op);
     gb_word_t const v = REG8_READ(Z(op)); // Current register value
     gb_word_t       r = v;                // Scratch for result
-
     switch (X(op)) {
-
     case 0b00:
         switch (P(op)) {
 
@@ -543,8 +485,7 @@ byte_t gb_ADD_HL_R(gb_opcode_t op, uint16_t d16) {
     FLAGS(.NG=0, 
           .HC=HC_ADD16(HL, v), 
           .CR=(r < HL));
-    HL = r;
-    return 8;
+    HL = r; return 8;
 }
 
 byte_t gb_ADD_SP_N(gb_opcode_t op, uint16_t d16) {
@@ -552,17 +493,13 @@ byte_t gb_ADD_SP_N(gb_opcode_t op, uint16_t d16) {
     uint8_t    const u = (uint8_t)d16;
     int8_t     const n = (int8_t)d16; //signed 8bit immediate
     gb_dword_t const r = SP + n;
-
-
     // C & H flags are calculated like when adding 8 bit values:
     // add immediate byte (as unsigned) to SP's lower byte.
-
     FLAGS(.ZR = 0,
           .NG = 0,
           .HC = HC_ADD(SP, u),
           .CR = ((SP + u) & 0xFF) < (SP & 0xFF));
-    SP = r;
-    return 16;
+    SP = r; return 16;
 }
 
 byte_t gb_LD_HL_SP_N(gb_opcode_t op, uint16_t d16) {
@@ -570,23 +507,18 @@ byte_t gb_LD_HL_SP_N(gb_opcode_t op, uint16_t d16) {
     uint8_t    const u = (uint8_t)d16; 
     int8_t     const n = (int8_t)d16; //signed 8bit
     gb_dword_t const r = SP + n;
-
     // C & H flags are calculated like when adding 8 bit values:
     // add immediate byte (as unsigned) to SP's lower byte.
-
     FLAGS(.ZR = 0,
           .NG = 0,
           .HC = HC_ADD(SP, u),
           .CR = ((SP+u) & 0xFF) < (SP & 0xFF));
-    HL = r;
-    return 12;
+    HL = r; return 12;
 }
-
 
 ////////////////////////////////////////////////
 // Jump Commands / Flow Control
 ////////////////////////////////////////////////
-
 byte_t gb_JP_N(gb_opcode_t op, uint16_t d16) {
     UNUSED(op);
     PC = d16; return 16;
@@ -595,8 +527,7 @@ byte_t gb_JP_N(gb_opcode_t op, uint16_t d16) {
 byte_t gb_JR_N(gb_opcode_t op, uint16_t d16) {
     UNUSED(op);
     int8_t n = (int8_t)d16; //signed 8bit
-    PC += n; 
-    return 12;
+    PC += n; return 12;
 }
 
 byte_t gb_JP_INDIRECT_HL(gb_opcode_t op, uint16_t d16) {
@@ -635,7 +566,6 @@ byte_t gb_JP_F_NN(gb_opcode_t op, uint16_t d16) {
     }else return 12;
 }
 
-
 byte_t gb_CALL_F_N(gb_opcode_t op, uint16_t d16) {
     if (gb_jmpcondition_check(op)) {
         SP -= 2;
@@ -653,8 +583,6 @@ byte_t gb_CALL_N(gb_opcode_t op, uint16_t d16) {
     return 12;
 } 
 
-
-
 byte_t gb_RET(gb_opcode_t op, uint16_t d16) {
     UNUSED(d16);
     PC = LOAD16(SP); //PC is already moved 
@@ -665,7 +593,6 @@ byte_t gb_RET(gb_opcode_t op, uint16_t d16) {
     }
     return 16;
 }
-
 
 byte_t gb_RET_F(gb_opcode_t op, uint16_t d16) {
     UNUSED(op, d16);
@@ -682,8 +609,7 @@ byte_t gb_RST(gb_opcode_t op, uint16_t d16) {
     byte_t const N = Y(op) << 3;
     SP -= 2;
     STOR16(SP) = PC;
-    PC = N;
-    return 16; //other sources say 32..
+    PC = N; return 16; //other sources say 32..
 }
 
 
@@ -696,15 +622,13 @@ byte_t gb_RST(gb_opcode_t op, uint16_t d16) {
 
 byte_t gb_CCF(gb_opcode_t op, uint16_t d16) {
     UNUSED(op, d16);
-    FLAGS(.CR = GET_C()?0:1);
-    return 4;
+    FLAGS(.CR = GET_C()?0:1); return 4;
 }
 
 
 byte_t gb_SCF(gb_opcode_t op, uint16_t d16) {
     UNUSED(op, d16);
-    FLAGS(.CR = 1);
-    return 4;
+    FLAGS(.CR = 1); return 4;
 }
 
 byte_t gb_NOP(gb_opcode_t op, uint16_t d16) {
@@ -717,8 +641,8 @@ byte_t gb_DI(gb_opcode_t op, uint16_t d16) {
     g_GB.interrupts.IME = false;
     /*  TODO:
     This instruction disables interrupts but not
-    immediately.Interrupts are disabled after
-    instruction after DI is executed. */
+    immediately.Interrupts are disabled when 
+    next instruction after DI is executed. */
     return 4;
 }
 
@@ -740,20 +664,15 @@ byte_t gb_HALT(gb_opcode_t op, uint16_t d16) {
     
     The program counter will stay at the HALT instruction (see HALT's OP_DEF)
     until the flag `HALT_is_waiting_for_ISR` is cleared by 
-
     */
-
     if (false == g_GB.interrupts.HALT) {
-        
         // We enter halted state:
-
         g_GB.interrupts.HALT = true;
         g_GB.interrupts.HALT_is_waiting_for_ISR = true;
 
     } else {
         // We are in HALTED state, the Program Counter will not move
         // until an ISR is executed.
-        
         if (false == g_GB.interrupts.HALT_is_waiting_for_ISR) {
 
             // ISR was invoked, we can resume the CPU:
