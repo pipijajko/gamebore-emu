@@ -43,10 +43,10 @@ Opcode parsing macros*/
 
 /*
 Helper macros/functions for setting CPU flags */
-typedef 
-struct flagsetter_s {
+typedef struct flagsetter_s {
     int8_t ZR, NG, HC, CR; //using 2 letter names to avoid collisions with macros
 }flagsetter_s;
+
 #define FLAG_OMIT ((int8_t)(-127)) 
 
 void flags_setter(flagsetter_s f) {
@@ -71,10 +71,12 @@ Flag getters*/
 #define GET_N() (((F) & GB_FLAG_N) == GB_FLAG_N)
 #define GET_H() (((F) & GB_FLAG_H) == GB_FLAG_H)
 #define GET_C() (((F) & GB_FLAG_C) == GB_FLAG_C)
+
 /*
 Register maps*/
 #define HL_INDIRECT 0x6 //g_regmap_D index for (HL)
 #define HL_INDIRECT_DUMMY NULL
+
 static gb_dword_t * const g_regmap_R[]  = { &BC, &DE, &HL, &SP }; //2bit
 static gb_dword_t * const g_regmap_R2[] = { &BC, &DE, &HL, &AF }; //2bit'
 static gb_word_t  * const g_regmap_D[]  = { &B, &C, &D, &E, &H,&L, HL_INDIRECT_DUMMY, &A }; //3bit
@@ -99,7 +101,6 @@ void gb_CPU_init(void)/*Initialize CPU Registers*/
     PC = 0x0100;
 }
 
-
 byte_t gb_CPU_step(void)
 {
     byte_t    cycles;
@@ -116,7 +117,6 @@ byte_t gb_CPU_step(void)
     return cycles;
 }
 
-
 byte_t gb_CPU_interrupt(gb_addr_t vector)
 {
     StopIf(vector < 0x0040 || vector > 0x0060, abort(), "Invalid interrupt vector 0x%x!", vector);
@@ -126,11 +126,12 @@ byte_t gb_CPU_interrupt(gb_addr_t vector)
     STOR16(SP) = PC; //PC is already moved 
     PC = vector;
     return 12;
-    
 }
+
 ////////////////////////////////////////////////
 //GMB 8bit - Loadcommands
 ////////////////////////////////////////////////
+
 byte_t gb_LD_D_D(gb_opcode_t op, uint16_t d16) {
     UNUSED(d16); 
     REG8_WRITE(Y(op)) = REG8_READ(Z(op));
@@ -151,7 +152,6 @@ byte_t gb_LD_A_INDIRECT_NN(gb_opcode_t op, uint16_t d16) {
     UNUSED(op); 
     A = LOAD8(d16); return 16;
 }
-
 
 byte_t gb_LD_A_INDIRECT_R(gb_opcode_t op, uint16_t d16) {
     UNUSED(d16);
@@ -179,19 +179,17 @@ byte_t gb_LD_A_INDIRECT_C(gb_opcode_t op, uint16_t d16) { //-----------Read from
     A = LOAD8(0xFF00 + C); return 8;
 }
 
-
 byte_t gb_LD_INDIRECT_C_A(gb_opcode_t op, uint16_t d16) { //------------Write to IO port
     UNUSED(op, d16);
     STOR8(0xFF00 + C) = A; return 8;
 }
 
-//Not implemented yet:
-//byte_t gb_LDH_A_NN(gb_opcode_t op, uint16_t d16) { //-----------Read from IO port
+//byte_t gb_LDH_A_NN(gb_opcode_t op, uint16_t d16) { //-----------XXX
 //    UNUSED(op);
 //    A = LOAD8(0xFF00 + (d16 & 0xFF)); return 8;
 //}
 
-//byte_t gb_LDH_NN_A(gb_opcode_t op, uint16_t d16) { //------------Write to IO port
+//byte_t gb_LDH_NN_A(gb_opcode_t op, uint16_t d16) { //------------XXX
 //    UNUSED(op);
 //    STORE8(0xFF00 + (d16 & 0xFF)) = A; return 8;
 //}
@@ -215,7 +213,6 @@ byte_t gb_LDD_A_INDIRECT_HL(gb_opcode_t op, uint16_t d16) {
     UNUSED(op, d16);
     A = LOAD8(HL--); return 8;
 }
-
 
 ////////////////////////////////////////////////
 //GMB 16bit - Loadcommands
@@ -290,7 +287,6 @@ byte_t gb_ALU_A_N(gb_opcode_t op, uint16_t d16) {
     case gb_ALU_SUB: r = A - n;    FLAGS_ALL(!r, 1, HC_SUB(A, n), (n > A));
         break;
     }
-    
     //for ALU CP - A remains unchanged: 
     A = (gb_ALU_CP == alu) ? A : r;
     
@@ -359,15 +355,14 @@ byte_t gb_DAA(gb_opcode_t op, uint16_t d16) { //Decimal Adjust register A
 byte_t gb_CPL(gb_opcode_t op, uint16_t d16) { //Complement A
     UNUSED(op, d16);
     A = ~A;
-    FLAGS(.NG = 1,
-          .HC = 1);
-    return 4;
+    FLAGS(.NG = 1, .HC = 1); return 4;
 }
 
 ////////////////////////////////////////////////
 //GMB Singlebit Operation Commands
 //GMB Rotate & Shift
 ////////////////////////////////////////////////
+
 byte_t gb_ROT_A(gb_opcode_t op, uint16_t d16) {
     UNUSED(d16);
     gb_word_t const v    = A;
@@ -392,6 +387,7 @@ byte_t gb_ROT_A(gb_opcode_t op, uint16_t d16) {
 ////////////////////////////////////////////////
 // All 256 0xCB prefixed opcodes implementation:
 ////////////////////////////////////////////////
+
 byte_t gb_PREFIX_CB(gb_opcode_t op, uint16_t d16) {
     //
     // Actual op-code is the second word after 0xCB, override to avoid typos:
@@ -468,6 +464,7 @@ byte_t gb_PREFIX_CB(gb_opcode_t op, uint16_t d16) {
 ////////////////////////////////////////////////
 //GMB 16bit - ALU
 ////////////////////////////////////////////////
+
 byte_t gb_INC_R(gb_opcode_t op, uint16_t d16) {
     UNUSED(d16);
     (*g_regmap_R[P(op)])++; return 8;
@@ -570,8 +567,7 @@ byte_t gb_CALL_F_N(gb_opcode_t op, uint16_t d16) {
     if (gb_jmpcondition_check(op)) {
         SP -= 2;
         STOR16(SP) = PC; //PC is already moved 
-        PC = d16;
-        return 24;
+        PC = d16; return 24;
     }else return 12;
 }
 
@@ -579,8 +575,7 @@ byte_t gb_CALL_N(gb_opcode_t op, uint16_t d16) {
     UNUSED(op); 
     SP -= 2;         //Push address of next instruction onto stack and thenjump to address nn.
     STOR16(SP) = PC; //PC is already moved 
-    PC = d16;
-    return 12;
+    PC = d16; return 12;
 } 
 
 byte_t gb_RET(gb_opcode_t op, uint16_t d16) {
@@ -612,19 +607,14 @@ byte_t gb_RST(gb_opcode_t op, uint16_t d16) {
     PC = N; return 16; //other sources say 32..
 }
 
-
-
-
 ////////////////////////////////////////////////
 // CPU Control Commands
 ////////////////////////////////////////////////
-
 
 byte_t gb_CCF(gb_opcode_t op, uint16_t d16) {
     UNUSED(op, d16);
     FLAGS(.CR = GET_C()?0:1); return 4;
 }
-
 
 byte_t gb_SCF(gb_opcode_t op, uint16_t d16) {
     UNUSED(op, d16);
@@ -639,8 +629,7 @@ byte_t gb_NOP(gb_opcode_t op, uint16_t d16) {
 byte_t gb_DI(gb_opcode_t op, uint16_t d16) {
     UNUSED(op, d16);
     g_GB.interrupts.IME = false;
-    /*  TODO:
-    This instruction disables interrupts but not
+    /*  This instruction disables interrupts but not
     immediately.Interrupts are disabled when 
     next instruction after DI is executed. */
     return 4;
@@ -663,7 +652,8 @@ byte_t gb_HALT(gb_opcode_t op, uint16_t d16) {
         * `g_GB.interrupts.HALT_is_waiting_for_ISR`
     
     The program counter will stay at the HALT instruction (see HALT's OP_DEF)
-    until the flag `HALT_is_waiting_for_ISR` is cleared by 
+    until the flag `HALT_is_waiting_for_ISR` is cleared by any interrupt request,
+    regardless if IME is enabled or not.
     */
     if (false == g_GB.interrupts.HALT) {
         // We enter halted state:
