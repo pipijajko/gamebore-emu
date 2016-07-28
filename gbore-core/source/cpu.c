@@ -290,7 +290,7 @@ byte_t gb_ALU_A_N(gb_opcode_t op, uint16_t d16) {
     //for ALU CP - A remains unchanged: 
     A = (gb_ALU_CP == alu) ? A : r;
     
-    return 4; //wrong i think
+    return 4; //wrong i think 8?
 }
 
 byte_t gb_ALU_A_D(gb_opcode_t op, uint16_t d16) {
@@ -425,8 +425,8 @@ byte_t gb_PREFIX_CB(gb_opcode_t op, uint16_t d16) {
                 FLAGS_ALL(!r, 0, 0, BIT_GET_N(v, 7));
             }
             else {
-                r = v >> 1 | (v & 0x80); //MSB := intact 
-                FLAGS_ALL(!r, 0, 0, 0);
+                r = (v >> 1) | (v & 0x80); //MSB := intact 
+                FLAGS_ALL(!r, 0, 0, BIT_GET_N(v, 0));
             }
             break;
         case 0b11: // SWAP D, SRL D (Swap nibbles of D, Shift R into carry)
@@ -613,12 +613,12 @@ byte_t gb_RST(gb_opcode_t op, uint16_t d16) {
 
 byte_t gb_CCF(gb_opcode_t op, uint16_t d16) {
     UNUSED(op, d16);
-    FLAGS(.CR = GET_C()?0:1); return 4;
+    FLAGS(.NG = 0, .HC = 0, .CR = GET_C()?0:1); return 4;
 }
 
 byte_t gb_SCF(gb_opcode_t op, uint16_t d16) {
     UNUSED(op, d16);
-    FLAGS(.CR = 1); return 4;
+    FLAGS(.NG = 0, .HC = 0, .CR = 1); return 4;
 }
 
 byte_t gb_NOP(gb_opcode_t op, uint16_t d16) {
