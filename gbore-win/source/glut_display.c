@@ -127,11 +127,18 @@ gbdisp_init(gbdisp_config_s cfg, gbdisplay_h *handle)
     size_t const win_w = w * mod;
 
     glutInit(&cfg.argc, cfg.argv);
-    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA);
+    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA| GLUT_ALPHA);
+    /*glEnable(GL_BLEND);
+
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glBlendFunc(GL_ONE_MINUS_DST_ALPHA, GL_DST_ALPHA);
+    glClearColor(0.0, 0.0, 0.0, 0.0);*/
 
     glutInitWindowSize(win_w, win_h);
     glutInitWindowPosition(320, 320); //TODO: set screen center
     glutCreateWindow(win_name);
+
+
 
     //glutIdleFunc(internal_idle_evt);
     glutDisplayFunc(internal_display_evt);
@@ -185,6 +192,7 @@ void gbdisp_putpixel(gbdisplay_h handle, uint8_t x, uint8_t y, gb_color_s c)
            "screen overflow!")
 
     g_context.screen_ready = false; //dirty
+    if (!c.A) return; //homebrew transparency :F
     //
     //Calculate Pixel location in linear buffer
     //

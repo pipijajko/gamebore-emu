@@ -20,11 +20,11 @@ limitations under the License.
 
 
 static gb_color_s DMG_palette[5] = {
-    { 255, 255, 255, 0 }, // Off (white)
-    { 192, 192, 192, 0 }, // 33% on
-    { 96, 96, 96, 0 }, // 66% on 
-    { 0, 0, 0, 0 }, // On (black)
-    { 255, 255, 255, 255},
+    { 255, 255, 255, 255 }, // Off (white)
+    { 192, 192, 192, 255 }, // 33% on
+    { 96, 96, 96, 255 }, // 66% on 
+    { 0, 0, 0, 255 }, // On (black)
+    { 0, 0, 0, 0}, //Transparent
 };
 
 
@@ -171,7 +171,10 @@ uint8_t gb_DISPLAY_get_tile_px(gb_addr_t const tile_addr, uint8_t const x, uint8
 __forceinline
 gb_color_s gb_DISPLAY_get_CHR_px(gb_screen_state_s const*const s, gb_word_t CHR_no, uint8_t x, uint8_t y) {
     
-    gb_addr_t const chr_data = s->CHR_tile_data_address + (CHR_no * GB_TILE_BYTES);
+    //If CHR_no is signed value then XOR with 0x80:
+    gb_word_t const adjusted_CHR_no = (s->is_CHR_map_index_signed) ? (CHR_no ^ 0x80) : (CHR_no);
+    gb_addr_t const chr_data = s->CHR_tile_data_address + (adjusted_CHR_no * GB_TILE_BYTES);
+
     uint8_t color_n = gb_DISPLAY_get_tile_px(chr_data, x, y);
     
     return gb_DISPLAY_get_DMG_color(GB_IO_BGP, color_n);
@@ -200,10 +203,15 @@ gb_color_s gb_DISPLAY_get_OBJ_px(gb_screen_state_s const*const s, gb_OBJ_s sprit
         y %= 8;
     }
 
-    gb_addr_t const tile_address = s->CHR_tile_data_address + (tile_no * GB_TILE_BYTES);
+    gb_word_t const adjusted_tile_no = (s->is_CHR_map_index_signed) ? (tile_no ^ 0x80) : (tile_no);
+    gb_addr_t const tile_address = s->CHR_tile_data_address + (adjusted_tile_no * GB_TILE_BYTES);
 
     uint8_t color_n = gb_DISPLAY_get_tile_px(tile_address, sprite_x, sprite_y);
-    return gb_DISPLAY_get_DMG_color(dmg_palette_addr, color_n);
+    if (0x00 == color_n) {
+        return DMG_palette[4]; //transparent
+    }else{
+        return gb_DISPLAY_get_DMG_color(dmg_palette_addr, color_n);
+    }
 }
 
 

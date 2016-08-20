@@ -261,7 +261,7 @@ gbdbg_mute_print(gb_debugdata_h handle, bool set_mute)
     assert(handle.unused);
     struct gbdbg_context_s* dbg = (struct gbdbg_context_s*)handle.unused;
     dbg->print_enabled = !set_mute;
-    dbg->log_enabled = false;
+    dbg->log_enabled = !set_mute;
 
 }
 
