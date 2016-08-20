@@ -313,3 +313,5 @@ $RECYCLE.BIN/
 #freeglut
 freeglut/
 *dbg_output.txt
+*.dll
+*.lib

@@ -271,21 +271,18 @@ byte_t gb_ALU_A_N(gb_opcode_t op, uint16_t d16) {
     gb_alu_mode_e alu = Y(op);
     gb_word_t  n      = (gb_word_t)d16 & 0xFF;
     gb_word_t  r      = 0;
+    gb_word_t  c      = GET_C();
 
     switch (alu) {
-    //   ALU MODE   |execute                 |Z            |N        |H         |C
-    case gb_ALU_AND: r = A & n;    FLAGS_ALL(!r, 0, 1, 0);  break;
-    case gb_ALU_XOR: r = A ^ n;    FLAGS_ALL(!r, 0, 0, 0);  break;
-    case gb_ALU_OR:  r = A | n;    FLAGS_ALL(!r, 0, 0, 0);  break;
-
-    case gb_ALU_ADC: n += GET_C();  // fallthrough;
-    case gb_ALU_ADD: r = A + n;    FLAGS_ALL(!r, 0, HC_ADD(A, n), (r < A));break;
-        break;
-
-    case gb_ALU_SBC: n += GET_C();  // fallthrough;
+    //   ALU MODE   |execute                  |Z            |N        |H         |C
+    case gb_ALU_AND: r = A & n;      FLAGS_ALL(!r, 0, 1, 0);  break;
+    case gb_ALU_XOR: r = A ^ n;      FLAGS_ALL(!r, 0, 0, 0);  break;
+    case gb_ALU_OR:  r = A | n;      FLAGS_ALL(!r, 0, 0, 0);  break;
+    case gb_ALU_ADD: r = A + n;      FLAGS_ALL(!r, 0, HC_ADD(A, n), (r < A));break;
     case gb_ALU_CP:                 // fallthrough;
-    case gb_ALU_SUB: r = A - n;    FLAGS_ALL(!r, 1, HC_SUB(A, n), (n > A));
-        break;
+    case gb_ALU_SUB: r = A - n;      FLAGS_ALL(!r, 1, HC_SUB(A, n), (n > A));break;
+    case gb_ALU_SBC: r = A - n - c;  FLAGS_ALL(!r, 1, HC_SBC(A, n, c), (n+c > A)); break;
+    case gb_ALU_ADC: r = A + n + c;  FLAGS_ALL(!r, 0, HC_ADC(A, n, c), (A+n+c > r)); break;
     }
     //for ALU CP - A remains unchanged: 
     A = (gb_ALU_CP == alu) ? A : r;
@@ -670,5 +667,31 @@ byte_t gb_HALT(gb_opcode_t op, uint16_t d16) {
             g_GB.interrupts.HALT = false;;
         }
     }
+    return 4;
+}
+
+byte_t gb_STOP(gb_opcode_t op, uint16_t d16) {
+    UNUSED(op, d16);
+    assert((d16 & 0xFF) == 0x00);
+
+    /*
+    Draft implementation - seems to be broken!
+    */
+    if (false == g_GB.interrupts.STOP) {
+        // We enter halted state:
+        g_GB.interrupts.STOP = true;
+        g_GB.interrupts.STOP_is_waiting_for_JOYP = true;
+
+    } else {
+        // We are in HALTED state, the Program Counter will not move
+        // until an ISR is executed.
+        if (false == g_GB.interrupts.STOP_is_waiting_for_JOYP) {
+
+            // ISR was invoked, we can resume the CPU:
+            PC += 2;
+            g_GB.interrupts.STOP = false;;
+        }
+    }
+    //PC += 2;
     return 4;
 }

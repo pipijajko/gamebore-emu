@@ -101,8 +101,10 @@ typedef struct gb_interrupt_data_s
     // Emulator will loop on HALT command until the `is_waiting_for_ISR` is set to FALSE
     // by a Interupt Service Routine.
 
-    bool    HALT; 
+    bool    HALT;
     bool    HALT_is_waiting_for_ISR;
+    bool    STOP;
+    bool    STOP_is_waiting_for_JOYP;
 
 
     bool    IME;

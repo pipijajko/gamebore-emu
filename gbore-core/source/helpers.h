@@ -59,8 +59,10 @@ limitations under the License.
 //HC_ADD: TRUE if carry from bit 3
 //HC_SUB: TRUE if no borrow from bit 4.
 //HC_ADD16: TRUE if carry from bit 13
-#define HC_ADD(VAL, ADDEND)     (((((VAL) & 0xF) + ((ADDEND)    & 0xF)) & 0x10) == 0x10)
+#define HC_ADD(VAL, ADDEND)         (((((VAL) & 0xF) + ((ADDEND)& 0xF)) & 0x10) == 0x10)
+#define HC_ADC(VAL, ADDEND, CARRY)  (((((VAL) & 0xF) + ((ADDEND)& 0xF) + ((CARRY) & 0x1)) & 0x10) == 0x10)
 #define HC_SUB(VAL, SUBTRAHEND)   (((VAL) & 0xF) < ((SUBTRAHEND)& 0xF)) 
+#define HC_SBC(VAL, SUBTRAHEND, CARRY)   (((VAL) & 0xF) < (((SUBTRAHEND)& 0xF)+ ((CARRY)&0x1))) 
 #define HC_ADD16(VAL, ADDEND) (((((VAL) & 0xFFF) + ((ADDEND) & 0xFFF)) & 0x1000) == 0x1000)
 
 

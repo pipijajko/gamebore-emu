@@ -73,11 +73,13 @@ OP_DEF("11 0-1 001", 1, RET)
 OP_DEF("11 0-- 000", 1, RET_F)
 OP_DEF("11 --- 111", 1, RST)
 
+
 OP_DEF("00 111 111", 1, CCF)
 OP_DEF("00 110 111", 1, SCF)
 OP_DEF("00 000 000", 1, NOP)
 OP_DEF("11 110 011", 1, DI)
 OP_DEF("11 111 011", 1, EI)
+OP_DEF("00 010 000", 0, STOP)
 OP_OVR("01 110 110", 0, HALT) //Override LD (HL) (HL) - which is not a valid instruction
 
 OP_DEF("11 001 011", 2, PREFIX_CB)
