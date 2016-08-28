@@ -88,8 +88,6 @@ gb_word_t* gb_MMU_access(gb_addr_t const address, char const mode)
         // Maybe a more generic handler which just saves modified address and prev value in
         // SIO range. Now we have two switch()es :(
 
-
-
         if (address == GB_IO_OAM_DMA) {
             u->SIO.is_OAM_DMA_scheduled = true;
         }
@@ -243,14 +241,14 @@ void gb_MMU_cartridge_init(void const * cart_data, size_t const cart_data_size) 
     u->mem[0xFF25] = u->mem[0x00F3]; // NR51
     u->mem[0xFF26] = (g_GB.gb_model == gb_dev_SGB) ? u->mem[0x00F0] : u->mem[0x00F1]; // NR52
     u->mem[0xFF40] = u->mem[0x0091]; // LCDC
-    u->mem[0xFF42] = u->mem[0x0000]; // SCY
-    u->mem[0xFF43] = u->mem[0x0000]; // SCX
+    u->mem[0xFF42] = 0x00; // SCY 
+    u->mem[0xFF43] = 0x00; // SCX
     u->mem[0xFF45] = u->mem[0x0000]; // LYC
     u->mem[0xFF47] = u->mem[0x00FC]; // BGP
     u->mem[0xFF48] = u->mem[0x00FF]; // OBP0
     u->mem[0xFF49] = u->mem[0x00FF]; // OBP1
-    u->mem[0xFF4A] = u->mem[0x0000]; // WY
-    u->mem[0xFF4B] = u->mem[0x0000]; // WX
+    u->mem[0xFF4A] = 0x00; // WY
+    u->mem[0xFF4B] = 0x00; // WX
     u->mem[0xFFFF] = u->mem[0x0000]; // IE
 
 

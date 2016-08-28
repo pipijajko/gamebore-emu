@@ -202,9 +202,7 @@ gb_color_s gb_DISPLAY_get_OBJ_px(gb_screen_state_s const*const s, gb_OBJ_s sprit
         else       tile_no = sprite.tile_no | 0x01; //lower
         y %= 8;
     }
-
-    gb_word_t const adjusted_tile_no = (s->is_CHR_map_index_signed) ? (tile_no ^ 0x80) : (tile_no);
-    gb_addr_t const tile_address = s->CHR_tile_data_address + (adjusted_tile_no * GB_TILE_BYTES);
+    gb_addr_t const tile_address = GB_VRAM_TILES2_BEGIN + (tile_no * GB_TILE_BYTES);
 
     uint8_t color_n = gb_DISPLAY_get_tile_px(tile_address, sprite_x, sprite_y);
     if (0x00 == color_n) {
@@ -296,18 +294,18 @@ void gb_DISPLAY_render_sprite_line(gb_screen_state_s const*const s, gbdisplay_h 
     assert(sprite_y >= 0);
     assert(sprite_y < s->OBJ_height_px);
 
-    for (int_fast8_t i = 0; i < GB_TILE_WIDTH; i++) {
+    for (int16_t i = 0; i < GB_TILE_WIDTH; i++) {
         
-        int8_t const screen_x = i + (sprite.x - GB_OBJ_X_OFFSET); 
-        int8_t const sprite_x = i;
+        int16_t const screen_x = i + (sprite.x - GB_OBJ_X_OFFSET); 
+        int16_t const sprite_x = i;
         //
         // Skip negative X, break on off-screen
         //
         if (screen_x < 0) continue;
         if (screen_x >= GB_SCREEN_W) break;
-        gb_color_s const c = gb_DISPLAY_get_OBJ_px(s, sprite, sprite_x, sprite_y);
+        gb_color_s const c = gb_DISPLAY_get_OBJ_px(s, sprite, (uint8_t)sprite_x, (uint8_t)sprite_y);
 
-        gbdisp_putpixel(disp, screen_x, s->LY, c);
+        gbdisp_putpixel(disp, (uint8_t)screen_x, s->LY, c);
     }
 }
 
