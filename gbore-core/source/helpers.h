@@ -128,3 +128,7 @@ int asprintf(char **str, char* fmt, ...); //__attribute__((format(printf, 2, 3))
 }
 
 
+#define i8_xchg  _InterlockedExchange8
+#define i16_xchg _InterlockedExchange16
+#define u8_xchg(Target,Value)  (uint8_t)_InterlockedExchange8((int8_t volatile*)Target, (int8_t)Value)
+#define u16_xchg(Target,Value)  (uint16_t)_InterlockedExchange8((int16_t volatile*)Target, (int16_t)Value)

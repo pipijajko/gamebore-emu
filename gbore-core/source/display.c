@@ -66,7 +66,7 @@ gb_screen_state_s gb_DISPLAY_get_state(void) {
 
 
     // LCD Control Register:
-    gb_word_t const LCDC = *GB_MMU_ACCESS_INTERNAL(GB_IO_LCDC);
+    gb_word_t const LCDC = *gb_MMU_access_internal(GB_IO_LCDC);
     //LCDC Bits
     //Bit 7 - LCD Display Enable(0 = Off, 1 = On)
     //Bit 6 - Window Tile Map Display Select(0 = 9800 - 9BFF, 1 = 9C00 - 9FFF)
@@ -84,33 +84,34 @@ gb_screen_state_s gb_DISPLAY_get_state(void) {
 
 
     return (gb_screen_state_s) {
-        .LY = *GB_MMU_ACCESS_INTERNAL(GB_IO_LY), // Currently transfered Y line , 
-            .SCX = *GB_MMU_ACCESS_INTERNAL(GB_IO_SCX), // BG Scroll X (0x00-0xFF)
-            .SCY = *GB_MMU_ACCESS_INTERNAL(GB_IO_SCY), // BG Scroll Y (0x00-0xFF)  
-            .WY = *GB_MMU_ACCESS_INTERNAL(GB_IO_WY), // Window-Y coordinate (0x0-0x8F)
-            .WX = *GB_MMU_ACCESS_INTERNAL(GB_IO_WX), // Window-X coordinate (0x7-0xA6)
-            .STAT = *GB_MMU_ACCESS_INTERNAL(GB_IO_STAT), // LCDC Status Flag
-            .LCDC = LCDC,
-            .is_BG_display_enabled = BIT(LCDC, 0),
-            .is_OBJ_display_enabled = BIT(LCDC, 1),
-            .is_Window_display_enabled = BIT(LCDC, 5),
-            .is_CHR_map_index_signed = is_BG_map_signed,
-            .CHR_map_addres = BG_map_base,
-            .CHR_tile_data_address = BG_tile_data_base,
-            .WIN_map_address = Win_map_base,
-            .OBJ_height_px = OBJ_height,
-            .OBJ_map_address = GB_OBJ_MAP_BEGIN,
+        .LY   = *gb_MMU_access_internal(GB_IO_LY), // Currently transfered Y line , 
+        .SCX  = *gb_MMU_access_internal(GB_IO_SCX), // BG Scroll X (0x00-0xFF)
+        .SCY  = *gb_MMU_access_internal(GB_IO_SCY), // BG Scroll Y (0x00-0xFF)  
+        .WY   = *gb_MMU_access_internal(GB_IO_WY), // Window-Y coordinate (0x0-0x8F)
+        .WX   = *gb_MMU_access_internal(GB_IO_WX), // Window-X coordinate (0x7-0xA6)
+        .STAT = *gb_MMU_access_internal(GB_IO_STAT), // LCDC Status Flag
+        .LCDC = LCDC,
+        .is_BG_display_enabled = BIT(LCDC, 0),
+        .is_OBJ_display_enabled = BIT(LCDC, 1),
+        .is_Window_display_enabled = BIT(LCDC, 5),
+        .is_CHR_map_index_signed = is_BG_map_signed,
+        .CHR_map_addres = BG_map_base,
+        .CHR_tile_data_address = BG_tile_data_base,
+        .WIN_map_address = Win_map_base,
+        .OBJ_height_px = OBJ_height,
+        .OBJ_map_address = GB_OBJ_MAP_BEGIN,
     };
 }
 
 
 
-bool gb_DISPLAY_can_scan() {
+bool gb_DISPLAY_can_scan()
+{
     //
     // Function to check whether we should render the current LY line.
     //
     static int last_LY; //later move to separate display struct (not gbdisp_config_s)
-    gb_word_t const LY = *GB_MMU_ACCESS_INTERNAL(GB_IO_LY); // Currently transfered Y line 
+    gb_word_t const LY = *gb_MMU_access_internal(GB_IO_LY); // Currently transfered Y line 
 
     //Allow for scan only once per visible line
     if (LY == last_LY || LY >= GB_SCREEN_H) {
@@ -135,17 +136,18 @@ bool gb_DISPLAY_can_scan() {
 //////////////////////////////////////////////////////////////////
 
 __forceinline
-gb_color_s gb_DISPLAY_get_DMG_color(gb_addr_t palette_addr, uint8_t color_n) {
-
+gb_color_s gb_DISPLAY_get_DMG_color(gb_addr_t palette_addr, uint8_t color_n) 
+{
     StopIf(color_n > 3, abort(), "out of pallete range");
-    uint8_t palette = *GB_MMU_ACCESS_INTERNAL(palette_addr);
+    uint8_t palette = *gb_MMU_access_internal(palette_addr);
     uint8_t i = BIT_RANGE_GET(palette, color_n*2, color_n*2 + 1);
     return DMG_palette[i];
 }
 
 
 __forceinline
-uint8_t gb_DISPLAY_get_tile_px(gb_addr_t const tile_addr, uint8_t const x, uint8_t const y) {
+uint8_t gb_DISPLAY_get_tile_px(gb_addr_t const tile_addr, uint8_t const x, uint8_t const y) 
+{
     /*
     This is "raw" function for taking color number out of arbitrary sprite/tile.
     Use more specific functions for tiles(CHR) and sprites(OBJ): 
@@ -157,8 +159,8 @@ uint8_t gb_DISPLAY_get_tile_px(gb_addr_t const tile_addr, uint8_t const x, uint8
     //
     // this function returns color number for given x,y coordinates of sprite\tile (OBJ\CHR)
     //
-    gb_word_t const line_lo = *GB_MMU_ACCESS_INTERNAL(tile_addr + y * 2);
-    gb_word_t const line_hi = *GB_MMU_ACCESS_INTERNAL(tile_addr + y * 2 + 1);
+    gb_word_t const line_lo = *gb_MMU_access_internal(tile_addr + y * 2);
+    gb_word_t const line_hi = *gb_MMU_access_internal(tile_addr + y * 2 + 1);
 
     uint8_t const bit_hi = BIT_GET_N(line_hi, (7 - x));
     uint8_t const bit_lo = BIT_GET_N(line_lo, (7 - x));
@@ -169,8 +171,8 @@ uint8_t gb_DISPLAY_get_tile_px(gb_addr_t const tile_addr, uint8_t const x, uint8
 
 
 __forceinline
-gb_color_s gb_DISPLAY_get_CHR_px(gb_screen_state_s const*const s, gb_word_t CHR_no, uint8_t x, uint8_t y) {
-    
+gb_color_s gb_DISPLAY_get_CHR_px(gb_screen_state_s const*const s, gb_word_t CHR_no, uint8_t x, uint8_t y) 
+{
     //If CHR_no is signed value then XOR with 0x80:
     gb_word_t const adjusted_CHR_no = (s->is_CHR_map_index_signed) ? (CHR_no ^ 0x80) : (CHR_no);
     gb_addr_t const chr_data = s->CHR_tile_data_address + (adjusted_CHR_no * GB_TILE_BYTES);
@@ -181,8 +183,8 @@ gb_color_s gb_DISPLAY_get_CHR_px(gb_screen_state_s const*const s, gb_word_t CHR_
 }
 
 __forceinline
-gb_color_s gb_DISPLAY_get_OBJ_px(gb_screen_state_s const*const s, gb_OBJ_s sprite, uint8_t x, uint8_t y) {
-
+gb_color_s gb_DISPLAY_get_OBJ_px(gb_screen_state_s const*const s, gb_OBJ_s sprite, uint8_t x, uint8_t y) 
+{
     bool const flip_x = BIT(sprite.attrib, 5);
     bool const flip_y = BIT(sprite.attrib, 6);
     bool const behind_bg = BIT(sprite.attrib, 7);
@@ -230,8 +232,8 @@ will hide it but it will still affect other sprites sharing the same lines.
 */
 
 
-
-void gb_DISPLAY_sort_sprites_X(gb_OBJ_s sprites[], uint_fast8_t sprites_n) { //insertion sort
+void gb_DISPLAY_sort_sprites_X(gb_OBJ_s sprites[], uint_fast8_t sprites_n)  //insertion sort
+{
 
     uint_fast8_t i,j;
     gb_OBJ_s tmp;
@@ -247,9 +249,8 @@ void gb_DISPLAY_sort_sprites_X(gb_OBJ_s sprites[], uint_fast8_t sprites_n) { //i
 }
 
 
-uint8_t gb_DISPLAY_collect_intersecting_sprites(gb_screen_state_s const*const s, gb_OBJ_s out_sprites[]) {
-
-    
+uint8_t gb_DISPLAY_collect_intersecting_sprites(gb_screen_state_s const*const s, gb_OBJ_s out_sprites[])
+{
     // Collect OBJs (Sprites) intersecting currently drawn Y line (s.LY)
     // and put them into `out_sprites` array they will be further processed
     uint8_t sprites_n = 0;
@@ -259,7 +260,7 @@ uint8_t gb_DISPLAY_collect_intersecting_sprites(gb_screen_state_s const*const s,
     for (int_fast8_t i = GB_OBJ_COUNT - 1; i >= 0; i--) {
 
         gb_addr_t const obj_address = s->OBJ_map_address + i * sizeof(gb_OBJ_s);
-        gb_OBJ_s const * const sprite = (gb_OBJ_s*)GB_MMU_ACCESS_INTERNAL(obj_address);
+        gb_OBJ_s const * const sprite = (gb_OBJ_s*)gb_MMU_access_internal(obj_address);
         
         
         // Check if the sprite is on screen, only check Y (as X will still affect ordering)
@@ -284,9 +285,8 @@ uint8_t gb_DISPLAY_collect_intersecting_sprites(gb_screen_state_s const*const s,
 }
 
 
-void gb_DISPLAY_render_sprite_line(gb_screen_state_s const*const s, gbdisplay_h disp, gb_OBJ_s sprite) {
-
-    
+void gb_DISPLAY_render_sprite_line(gb_screen_state_s const*const s, gbdisplay_h disp, gb_OBJ_s sprite) 
+{
     // Get Y coordinate of sprite that corresponds to LY
     // GB_OBJ_Y_OFFSET: Sprites' Y has 16px offset to allow for drawing partially off screen
     uint8_t sprite_y = s->LY - (sprite.y - GB_OBJ_Y_OFFSET);
@@ -332,15 +332,12 @@ Return true if we reached last screen line, false otherwise
         uint8_t const tilemap_Y     = (vram_y / 8);
         uint16_t const tile_map_idx = (tilemap_Y * 32 + tilemap_X);
 
-        gb_word_t const CHR_code = *GB_MMU_ACCESS_INTERNAL(s.CHR_map_addres + tile_map_idx);
+        gb_word_t const CHR_code = *gb_MMU_access_internal(s.CHR_map_addres + tile_map_idx);
 
         //x,y pixel within the tile
         uint8_t const tile_x = vram_x % 8;
         uint8_t const tile_y = vram_y % 8;
-
         gb_color_s const c = gb_DISPLAY_get_CHR_px(&s, CHR_code, tile_x, tile_y);
-
-        
         gbdisp_putpixel(disp, x, s.LY, c);
     }
 

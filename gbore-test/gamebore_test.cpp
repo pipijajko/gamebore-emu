@@ -340,10 +340,10 @@ TEST(Loads16Bit, LDI) {
                 g_GB.r.HL = (gb_dword_t)adr; 
                 if (i % 2 == 0) { 
                     src = &g_GB.r.A;
-                    dst = gb_MMU_store8(g_GB.r.HL);
+                    dst = gb_MMU_access_internal(g_GB.r.HL);
                 }
                 else {
-                    src = gb_MMU_store8(g_GB.r.HL); //we use store8 to get writable ptr value
+                    src = gb_MMU_access_internal(g_GB.r.HL); //we use store8 to get writable ptr value
                     dst = &g_GB.r.A;
                 }
                 *src = vals[t];
@@ -533,14 +533,14 @@ TEST(Loads8Bit, LD_R_R) {
                     if (r[s] == &g_GB.r.H || r[s] == &g_GB.r.L)  is_mutating_hl = true;
                     else {
                         g_GB.r.HL = 0x8080;
-                        dst = gb_MMU_store8(g_GB.r.HL);
+                        dst = gb_MMU_access_internal(g_GB.r.HL);
                     }
                 }
                 
 
                 if (src == HL_INDIRECT) {
                     g_GB.r.HL = 0x8080;
-                    src = (gb_word_t*)gb_MMU_load8(g_GB.r.HL);
+                    src = gb_MMU_access_internal(g_GB.r.HL);
                 }
 
                 
@@ -548,7 +548,7 @@ TEST(Loads8Bit, LD_R_R) {
                 for (int vi = 0; vi < COUNT_OF(test_values); vi++) {
                     *src = test_values[vi];
                     if (is_mutating_hl) {
-                        dst = gb_MMU_store8(g_GB.r.HL);
+                        dst = gb_MMU_access_internal(g_GB.r.HL);
                     }
                     
                     byte_t cycles = g_GB.ops[oa[i].opcode].handler(oa[i].opcode, 0x0);
@@ -872,6 +872,104 @@ TEST(DAA_compliance, DAA_comparison) {
     gb_destroy();
 }
 
+
+
+
+void adc_reference(gb_word_t * const R)
+{
+    gb_word_t x = *R;
+    uint8_t flag_c = ((g_GB.r.F & f_c) == f_c) ? (1) : (0);
+    uint16_t rh = g_GB.r.A + x + flag_c;
+    uint16_t rl = (g_GB.r.A & 0x0f) + (x & 0x0f) + flag_c;
+    g_GB.r.A = rh & 0xFF;
+
+    g_GB.r.F = 0;
+    g_GB.r.F |= ((uint8_t)rh == 0) ? f_z : 0;
+    g_GB.r.F |= (rl > 0x0f) ? f_h : 0;
+    g_GB.r.F |= (rh > 0xff) ? f_c : 0;
+
+}
+
+
+TEST(ALU8bit, ADC_compliance) {
+    gb_initialize(NULL, 0);
+    gbdbg_mute_print(g_GB.dbg, true);
+    op_def_t oa[] = {
+
+        { 136, "ADC A,B", 1, 4, "Z 0 H C" },
+        { 137, "ADC A,C", 1, 4, "Z 0 H C" },
+        { 138, "ADC A,D", 1, 4, "Z 0 H C" },
+        { 139, "ADC A,E", 1, 4, "Z 0 H C" },
+        { 140, "ADC A,H", 1, 4, "Z 0 H C" },
+        { 141, "ADC A,L", 1, 4, "Z 0 H C" },
+        { 142, "ADC A,{HL}", 1, 8, "Z 0 H C" },
+        { 143, "ADC A,A", 1, 4, "Z 0 H C" },
+    };
+    gb_word_t * const reg[] = {
+        &g_GB.r.B,
+        &g_GB.r.C,
+        &g_GB.r.D,
+        &g_GB.r.E,
+        &g_GB.r.H,
+        &g_GB.r.L,
+        NULL,
+        &g_GB.r.A,
+    };
+
+    gb_word_t flags[] = { f_c, f_0 };
+
+    for (int i = 0; i < COUNT_OF(oa); i++) {
+
+        EXPECT_FALSE(g_GB.ops[oa[i].opcode].handler == NULL);
+        EXPECT_EQ(g_GB.ops[oa[i].opcode].size, oa[i].op_size);
+        
+        gb_word_t * const reg_ptr = reg[i] ? reg[i] : gb_MMU_access_internal(g_GB.r.HL);
+        
+
+
+        for (int A = 0x0; A <= 0xFF; A++) {
+            printf("%s", oa[i].op_name);
+            for (int R = 0x0; R <= 0xFF; R++) {
+                for (int f = 0; f < COUNT_OF(flags); f++) {
+
+                    g_GB.r.F = flags[f];
+                    g_GB.r.A = A;
+                    *reg_ptr = R;
+                    adc_reference(reg_ptr);
+
+                    gb_word_t ref_result_A = g_GB.r.A;
+                    gb_word_t ref_result_F = g_GB.r.F;
+
+                    g_GB.r.F = flags[f];
+                    g_GB.r.A = A;
+                    *reg_ptr = R;
+
+                    byte_t cycles = g_GB.ops[oa[i].opcode].handler(oa[i].opcode, 0);
+                        
+                    EXPECT_EQ(cycles, oa[i].cpu_cycles);
+                    
+                    EXPECT_EQ(ref_result_A, g_GB.r.A);
+                    EXPECT_EQ(ref_result_F, g_GB.r.F);
+                    if (ref_result_A != g_GB.r.A || ref_result_F != g_GB.r.F) {
+                        
+                        printf("INSTRUCTION FAIL:%s\n"
+                               "Initial data A:0x%hhx, R:0x%hhx, F:0x%hhx, \n"
+                               "referenceA:0x%hhx, referenceF:0x%hhx,\n"
+                               "actualA:0x%hhx, actualF:0x%hhx\n\n",
+                               oa[i].op_name, A, R, flags[f],
+                               ref_result_A, ref_result_F,
+                               g_GB.r.A, g_GB.r.F
+                        );
+                    }
+                }
+            }
+        }
+    }
+    gb_destroy();
+
+
+
+}
 
 
 /*

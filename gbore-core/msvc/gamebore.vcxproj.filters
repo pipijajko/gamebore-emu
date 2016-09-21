@@ -9,6 +9,9 @@
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
       <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
     </Filter>
+    <Filter Include="Header Files\MBC">
+      <UniqueIdentifier>{6ce65449-2126-43ba-b7e1-8c26cae7602e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\source\cpu.c">
@@ -38,11 +41,11 @@
     <ClCompile Include="..\source\input.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\source\cart.c">
+      <Filter>Header Files\MBC</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\source\cart.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\source\cpu.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -72,6 +75,15 @@
     </ClInclude>
     <ClInclude Include="..\source\input.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\source\memory_xmacros.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\source\cpu_dsl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\source\cart.h">
+      <Filter>Header Files\MBC</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

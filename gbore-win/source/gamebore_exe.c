@@ -54,7 +54,7 @@ void usage() {
 
 int main(int argc, char *argv[])
 {
-    uint8_t *ROM      = NULL;
+    uint8_t *ROM_file      = NULL;
     size_t   ROM_size = 0;
     FILE    *fp       = NULL;
     size_t   fsize    = 0;
@@ -74,13 +74,13 @@ int main(int argc, char *argv[])
         rewind(fp);
 
         //TODO: add real checks
-        assert(NULL == ROM);
+        assert(NULL == ROM_file);
         assert(fsize < 1024 * 1024); //it's gameboy after all
 
-        ROM = (uint8_t*)malloc(fsize);
-        if (!ROM) goto cleanup_generic;
+        ROM_file = (uint8_t*)malloc(fsize);
+        if (!ROM_file) goto cleanup_generic;
 
-        ROM_size = fread_s(ROM, fsize, 1, fsize, fp);
+        ROM_size = fread_s(ROM_file, fsize, 1, fsize, fp);
         assert(ROM_size == fsize);
     } else {
         usage();
@@ -90,8 +90,9 @@ int main(int argc, char *argv[])
     /////////////////////////////////////////////
     // Initialize MMU, CPU and Cartdridge data
     /////////////////////////////////////////////
-    gb_initialize(ROM, ROM_size);
+    gb_initialize(ROM_file, ROM_size);
 
+    free(ROM_file); //gb_initialize has made a copy, dispose
 
     //
     // Initialize program window 
@@ -123,7 +124,7 @@ cleanup_generic:
         fprintf(stderr, "initialization failed e:%d,errno:%d\n", e, errno);
         usage();
     }
-    if (ROM) free(ROM);
+    if (ROM_file) free(ROM_file);
     if (fp) fclose(fp);
     gb_destroy();
 

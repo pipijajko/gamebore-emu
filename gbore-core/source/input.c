@@ -67,7 +67,7 @@ void gb_INPUT_step() {
 
     gb_keypad_s const * const kp = &g_GB.keypad;
 
-    gb_word_t * const P1_JOYP        = GB_MMU_ACCESS_INTERNAL(GB_IO_P1_JOYP);
+    gb_word_t * const P1_JOYP        = gb_MMU_access_internal(GB_IO_P1_JOYP);
     gb_word_t  const  requested_keys = (*P1_JOYP) & (GB_KEY_READ_BUTTONS | GB_KEY_READ_DIRECTION);
 
     // Game decides which keys it wants to read by setting bit 0x10 or 0x20 in P1 JOYP

@@ -16,72 +16,10 @@ limitations under the License.
 #include <assert.h>
 #include "gamebore.h"
 
-/*
-Convenience macros*/
-#define F  (g_GB.r.F)
-#define A  (g_GB.r.A)
-#define B  (g_GB.r.B)
-#define C  (g_GB.r.C)
-#define D  (g_GB.r.D)
-#define E  (g_GB.r.E)
-#define H  (g_GB.r.H)
-#define L  (g_GB.r.L)
-#define AF (g_GB.r.AF)
-#define BC (g_GB.r.BC)
-#define DE (g_GB.r.DE)
-#define HL (g_GB.r.HL)
-#define SP (g_GB.r.SP)
-#define PC (g_GB.r.PC)
 
-/*
-Opcode parsing macros*/
-#define X(OP) (((OP) & 0b11000000) >> 6) //X(OP) - 1st octal digit, bits 7-6
-#define Y(OP) (((OP) & 0b00111000) >> 3) //Y(OP) - 2nd octal digit, bits 5-3
-#define Z(OP) (((OP) & 0b00000111) >> 0) //Z(OP) - 3rd octal digit, bits 2-0
-#define P(OP) (((OP) & 0b00110000) >> 4) //P(OP) - Y(OP) >> 1, i.e. bits 5-4
-#define Q(OP) (((OP) & 0b00001000) >> 3) //Q(OP) - Y(OP) % 2, i.e. bit 3
+#include "cpu_dsl.h"
 
-/*
-Helper macros/functions for setting CPU flags */
-typedef struct flagsetter_s {
-    int8_t ZR, NG, HC, CR; //using 2 letter names to avoid collisions with macros
-}flagsetter_s;
-
-#define FLAG_OMIT ((int8_t)(-127)) 
-
-void flags_setter(flagsetter_s f) {
-    if (f.ZR != FLAG_OMIT) SETCLR((f.ZR), F, GB_FLAG_Z);
-    if (f.NG != FLAG_OMIT) SETCLR((f.NG), F, GB_FLAG_N);
-    if (f.HC != FLAG_OMIT) SETCLR((f.HC), F, GB_FLAG_H);
-    if (f.CR != FLAG_OMIT) SETCLR((f.CR), F, GB_FLAG_C);
-}
-
-#define FLAGS(...) \
-    flags_setter((flagsetter_s){.ZR = FLAG_OMIT, \
-                                .NG = FLAG_OMIT, \
-                                .HC = FLAG_OMIT, \
-                                .CR = FLAG_OMIT, __VA_ARGS__})
-
-#define FLAGS_ALL(ZR, NG, HC, CR) \
-    flags_setter((flagsetter_s){ZR, NG, HC, CR})
-
-/*
-Flag getters*/
-#define GET_Z() (((F) & GB_FLAG_Z) == GB_FLAG_Z)
-#define GET_N() (((F) & GB_FLAG_N) == GB_FLAG_N)
-#define GET_H() (((F) & GB_FLAG_H) == GB_FLAG_H)
-#define GET_C() (((F) & GB_FLAG_C) == GB_FLAG_C)
-
-/*
-Register maps*/
-#define HL_INDIRECT 0x6 //g_regmap_D index for (HL)
-#define HL_INDIRECT_DUMMY NULL
-
-static gb_dword_t * const g_regmap_R[]  = { &BC, &DE, &HL, &SP }; //2bit
-static gb_dword_t * const g_regmap_R2[] = { &BC, &DE, &HL, &AF }; //2bit'
-static gb_word_t  * const g_regmap_D[]  = { &B, &C, &D, &E, &H,&L, HL_INDIRECT_DUMMY, &A }; //3bit
-
-void gb_CPU_init(void)/*Initialize CPU Registers*/
+void gb_CPU_initialize(void)/*Initialize CPU Registers*/
 {
     switch (g_GB.gb_model) { //different init of AF register depending on device model
     case gb_dev_Uninitialized:
@@ -100,6 +38,7 @@ void gb_CPU_init(void)/*Initialize CPU Registers*/
     SP = 0xFFFE;
     PC = 0x0100;
 }
+
 
 byte_t gb_CPU_step(void)
 {
@@ -123,7 +62,7 @@ byte_t gb_CPU_interrupt(gb_addr_t vector)
 
     gdbg_trace(g_GB.dbg, "!!!INTERRUPT!!! @0x%hX\n", vector);
     SP -= 2;         //Push address of next instruction onto stack and thenjump to address nn.
-    STOR16(SP) = PC; //PC is already moved 
+    STOR16(SP, PC); //PC is already moved 
     PC = vector;
     return 12;
 }
@@ -134,18 +73,18 @@ byte_t gb_CPU_interrupt(gb_addr_t vector)
 
 byte_t gb_LD_D_D(gb_opcode_t op, uint16_t d16) {
     UNUSED(d16); 
-    REG8_WRITE(Y(op)) = REG8_READ(Z(op));
+    REG8_WRITE(Y(op), REG8_READ(Z(op)));
     return (Y(op) == HL_INDIRECT || Z(op) == HL_INDIRECT) ? (12) : (4);
 }
 
 byte_t gb_LD_D_N(gb_opcode_t op, uint16_t d16) {
-    REG8_WRITE(Y(op)) = (d16 & 0xFF);
+    REG8_WRITE(Y(op), (d16 & 0xFF));
     return Y(op) == HL_INDIRECT ? (12) : (8);
 }
 
 byte_t gb_LD_INDIRECT_NN_A(gb_opcode_t op, uint16_t d16) {
     UNUSED(op);
-    STOR8(d16) = A; return 16;
+    STOR8(d16, A); return 16;
 }
 
 byte_t gb_LD_A_INDIRECT_NN(gb_opcode_t op, uint16_t d16) {
@@ -161,7 +100,7 @@ byte_t gb_LD_A_INDIRECT_R(gb_opcode_t op, uint16_t d16) {
 byte_t gb_LD_INDIRECT_R_A(gb_opcode_t op, uint16_t d16) {
     assert(P(op) == (P(op) & 0x1)); //only bit 4 can be set (registers BC, DE)
     UNUSED(d16);
-    STOR8(*g_regmap_R[P(op)]) = A; return 8;
+    STOR8(*g_regmap_R[P(op)], A); return 8;
 }
 
 byte_t gb_LDH_A_N(gb_opcode_t op, uint16_t d16) { //-----------Read from IO port
@@ -171,7 +110,7 @@ byte_t gb_LDH_A_N(gb_opcode_t op, uint16_t d16) { //-----------Read from IO port
 
 byte_t gb_LDH_N_A(gb_opcode_t op, uint16_t d16) { //------------Write to IO port
     UNUSED(op);
-    STOR8(0xFF00 + (d16 & 0xFF)) = A; return 12;
+    STOR8(0xFF00 + (d16 & 0xFF), A); return 12;
 }
 
 byte_t gb_LD_A_INDIRECT_C(gb_opcode_t op, uint16_t d16) { //-----------Read from IO port
@@ -181,7 +120,7 @@ byte_t gb_LD_A_INDIRECT_C(gb_opcode_t op, uint16_t d16) { //-----------Read from
 
 byte_t gb_LD_INDIRECT_C_A(gb_opcode_t op, uint16_t d16) { //------------Write to IO port
     UNUSED(op, d16);
-    STOR8(0xFF00 + C) = A; return 8;
+    STOR8(0xFF00 + C, A); return 8;
 }
 
 //byte_t gb_LDH_A_NN(gb_opcode_t op, uint16_t d16) { //-----------XXX
@@ -196,7 +135,7 @@ byte_t gb_LD_INDIRECT_C_A(gb_opcode_t op, uint16_t d16) { //------------Write to
 
 byte_t gb_LDI_INDIRECT_HL_A(gb_opcode_t op, uint16_t d16) {
     UNUSED(op, d16);
-    STOR8(HL++) = A; return 8;
+    STOR8(HL++, A); return 8;
 }
 
 byte_t gb_LDI_A_INDIRECT_HL(gb_opcode_t op, uint16_t d16) {
@@ -206,7 +145,7 @@ byte_t gb_LDI_A_INDIRECT_HL(gb_opcode_t op, uint16_t d16) {
 
 byte_t gb_LDD_INDIRECT_HL_A(gb_opcode_t op, uint16_t d16) {
     UNUSED(op, d16);
-    STOR8(HL--) = A; return 8;
+    STOR8(HL--, A); return 8;
 }
 
 byte_t gb_LDD_A_INDIRECT_HL(gb_opcode_t op, uint16_t d16) {
@@ -221,7 +160,7 @@ byte_t gb_LDD_A_INDIRECT_HL(gb_opcode_t op, uint16_t d16) {
 byte_t gb_PUSH_R(gb_opcode_t op, uint16_t d16) {
     UNUSED(d16); 
     SP -= 2; 
-    STOR16(SP) = (*g_regmap_R2[P(op)]); return 16;
+    STOR16(SP, (*g_regmap_R2[P(op)])); return 16;
 }
 
 byte_t gb_POP_R(gb_opcode_t op, uint16_t d16) {
@@ -236,7 +175,7 @@ byte_t gb_LD_R_NN(gb_opcode_t op, uint16_t d16) {
 
 byte_t gb_LD_INDIRECT_NN_SP(gb_opcode_t op, uint16_t d16) {
     UNUSED(op);
-    STOR16(d16) = SP; return 20; //pandoc says 12?
+    STOR16(d16, SP); return 20; //pandoc says 12?
 }
 
 byte_t gb_LD_SP_HL(gb_opcode_t op, uint16_t d16) {
@@ -249,7 +188,9 @@ byte_t gb_LD_SP_HL(gb_opcode_t op, uint16_t d16) {
 
 byte_t gb_INC_D(gb_opcode_t op, uint16_t d16) {
     UNUSED(d16);
-    byte_t v = REG8_WRITE( Y(op) )++;
+    byte_t v = REG8_READ(Y(op));
+    REG8_WRITE(Y(op), v + 1);
+
     FLAGS(.ZR = (v == 0xFF),  
           .NG = 0, 
           .HC = HC_ADD(v, 1)); 
@@ -259,7 +200,8 @@ byte_t gb_INC_D(gb_opcode_t op, uint16_t d16) {
 
 byte_t gb_DEC_D(gb_opcode_t op, uint16_t d16) {
     UNUSED(d16);
-    byte_t v = REG8_WRITE( Y(op) )--;
+    byte_t v = REG8_READ(Y(op));
+    REG8_WRITE(Y(op), v - 1);
     FLAGS(.ZR = (v == 0x1),
           .NG = 1,
           .HC = HC_SUB(v, 1));
@@ -454,7 +396,7 @@ byte_t gb_PREFIX_CB(gb_opcode_t op, uint16_t d16) {
         r = BIT_SET_N(v, n); 
         break;
     }
-    REG8_WRITE(Z(op)) = r; // Save result to destination register
+    REG8_WRITE(Z(op), r); // Save result to destination register
     return (Z(op) == HL_INDIRECT) ? 16 : 8;
 }
 
@@ -563,7 +505,7 @@ byte_t gb_JP_F_NN(gb_opcode_t op, uint16_t d16) {
 byte_t gb_CALL_F_N(gb_opcode_t op, uint16_t d16) {
     if (gb_jmpcondition_check(op)) {
         SP -= 2;
-        STOR16(SP) = PC; //PC is already moved 
+        STOR16(SP, PC); //PC is already moved 
         PC = d16; return 24;
     }else return 12;
 }
@@ -571,7 +513,7 @@ byte_t gb_CALL_F_N(gb_opcode_t op, uint16_t d16) {
 byte_t gb_CALL_N(gb_opcode_t op, uint16_t d16) {
     UNUSED(op); 
     SP -= 2;         //Push address of next instruction onto stack and thenjump to address nn.
-    STOR16(SP) = PC; //PC is already moved 
+    STOR16(SP, PC); //PC is already moved 
     PC = d16; return 12;
 } 
 
@@ -600,7 +542,7 @@ byte_t gb_RST(gb_opcode_t op, uint16_t d16) {
     UNUSED(d16);
     byte_t const N = Y(op) << 3;
     SP -= 2;
-    STOR16(SP) = PC;
+    STOR16(SP, PC);
     PC = N; return 16; //other sources say 32..
 }
 

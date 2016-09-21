@@ -18,7 +18,7 @@ limitations under the License.
 
 void gb_INTERRUPT_request(byte_t const interrupt_signal_flag) 
 {
-    gb_word_t *const IF = GB_MMU_ACCESS_INTERNAL(GB_IO_IF);
+    gb_word_t *const IF = gb_MMU_access_internal(GB_IO_IF);
     StopIf(interrupt_signal_flag > GB_INT_FLAG_KEYPAD, 
            abort(),
            "invalid INT signal:%hhu", interrupt_signal_flag);
@@ -27,6 +27,7 @@ void gb_INTERRUPT_request(byte_t const interrupt_signal_flag)
     
     // In case if the CPU is halted, clear the `is_waiting` flag:
     g_GB.interrupts.HALT_is_waiting_for_ISR = false;
+    //i think STOP must be hooked to FF00 register also, not just interrupt
     g_GB.interrupts.STOP_is_waiting_for_JOYP = ((*IF & GB_INT_FLAG_KEYPAD) != 0) ;
 
 }
@@ -34,8 +35,8 @@ void gb_INTERRUPT_request(byte_t const interrupt_signal_flag)
 
 void gb_INTERRUPT_execute(void) 
 {
-    gb_word_t *const IF = GB_MMU_ACCESS_INTERNAL(GB_IO_IF);
-    gb_word_t *const IE = GB_MMU_ACCESS_INTERNAL(GB_IO_IE);
+    gb_word_t *const IF = gb_MMU_access_internal(GB_IO_IF);
+    gb_word_t *const IE = gb_MMU_access_internal(GB_IO_IE);
     bool      const IME = g_GB.interrupts.IME;
 
     byte_t requested_interupts = ((*IE) & (*IF)) & GB_INT_ALL_MASK;
@@ -92,7 +93,7 @@ void gb_INTERRUPT_update_timers(void) //byte_t ticks_delta) )
 
     if (need_DIV_update) {
 
-        (*GB_MMU_ACCESS_INTERNAL(GB_IO_DIV))++;
+        (*gb_MMU_access_internal(GB_IO_DIV))++;
         interrupts->DIV_next_update_ticks += GB_DIV_UPDATE_TICKS;
     }
 
@@ -100,7 +101,7 @@ void gb_INTERRUPT_update_timers(void) //byte_t ticks_delta) )
     // TIMA/TAC/TMA Configurable Timer
     //
     // Check timer control:
-    gb_word_t const TAC    = *GB_MMU_ACCESS_INTERNAL(GB_IO_TAC);
+    gb_word_t const TAC    = *gb_MMU_access_internal(GB_IO_TAC);
     bool const is_timer_on = BIT(TAC, 2);
 
 
@@ -148,14 +149,14 @@ void gb_INTERRUPT_update_timers(void) //byte_t ticks_delta) )
             }
             increment = 1; //this above is kind of stupid, diff is something else than you thought
 
-            gb_word_t * const TIMA = GB_MMU_ACCESS_INTERNAL(GB_IO_TIMA);
+            gb_word_t * const TIMA = gb_MMU_access_internal(GB_IO_TIMA);
 
             if (increment+(*TIMA) >= 0xFF) {
 
                 // on TIMA overflow, generate interrupt and reinitialize with TMA
                 gb_INTERRUPT_request(GB_INT_FLAG_TIMER);
 
-                *TIMA = *GB_MMU_ACCESS_INTERNAL(GB_IO_TMA);
+                *TIMA = *gb_MMU_access_internal(GB_IO_TMA);
 
             } else {
                 StopIf(increment > 0xFF, abort(), "Terribly bad timer increment calculation!");
@@ -194,16 +195,15 @@ void gb_INTERRUPT_step(byte_t ticks_delta)
     interrupts->total_ticks += ticks_delta;
     interrupts->display_modeclock += ticks_delta;
 
-    
     gb_INTERRUPT_update_timers();
 
 
     // Get pointers to memory area with control registers
-    gb_word_t const * const LYC  = GB_MMU_ACCESS_INTERNAL(GB_IO_LYC);
-    gb_word_t const * const LCDC = GB_MMU_ACCESS_INTERNAL(GB_IO_LCDC);
-    gb_word_t * const STAT       = GB_MMU_ACCESS_INTERNAL(GB_IO_STAT);
-    gb_word_t * const LY         = GB_MMU_ACCESS_INTERNAL(GB_IO_LY);
-    bool const LCDC_enabled     = BIT_GET_N(*LCDC, 7);
+    gb_word_t const * const LYC  = gb_MMU_access_internal(GB_IO_LYC);
+    gb_word_t const * const LCDC = gb_MMU_access_internal(GB_IO_LCDC);
+    gb_word_t * const STAT       = gb_MMU_access_internal(GB_IO_STAT);
+    gb_word_t * const LY         = gb_MMU_access_internal(GB_IO_LY);
+    bool const LCDC_enabled      = BIT_GET_N(*LCDC, 7);
     bool const LCDC_toggled     = (LCDC_enabled != (interrupts->display_mode != gb_LCDC_DISABLED));
     /*
     LCDC_enabled| current_mode      | (mode eval) | result   | LCDC toggled?
@@ -224,6 +224,7 @@ void gb_INTERRUPT_step(byte_t ticks_delta)
             interrupts->display_modeclock = 0;
 
         }else{
+            gdbg_trace(g_GB.dbg, "LCDC DISABLED!");
             interrupts->display_mode = gb_LCDC_DISABLED;
             interrupts->display_line = 0;
             interrupts->display_modeclock = 0;
@@ -313,8 +314,6 @@ void gb_INTERRUPT_step(byte_t ticks_delta)
         case gb_LCDC_VRAM_READ: modename = "OAM+VRAM READ"; break;
         }
 
-        
-
         gdbg_trace(g_GB.dbg,"DISPLAY::new_mode:%s,ticks:%u,LY:%hhu,STAT:0x%x,LCDC:0x%x\n", 
                    modename,interrupts->display_modeclock, *LY, *STAT, *LCDC);
         
@@ -342,3 +341,44 @@ void gb_INTERRUPT_step(byte_t ticks_delta)
 }
 
 
+
+
+void gb_INTERRUPT_ioports_initialize()
+{
+    // IO PORTS initialization -- I'm not particularly sure this belongs here,
+    // but I know that the code above will not fly if this is not run. 
+    // So I'll leave it here.
+    *gb_MMU_access_internal(0xFF05) = (0x00); // TIMA
+    *gb_MMU_access_internal(0xFF06) = (0x00); // TMA
+    *gb_MMU_access_internal(0xFF07) = (0x00); // TAC
+    *gb_MMU_access_internal(0xFF10) = (0x80); // NR10
+    *gb_MMU_access_internal(0xFF11) = (0xBF); // NR11
+    *gb_MMU_access_internal(0xFF12) = (0xF3); // NR12
+    *gb_MMU_access_internal(0xFF14) = (0xBF); // NR14
+    *gb_MMU_access_internal(0xFF16) = (0x3F); // NR21
+    *gb_MMU_access_internal(0xFF17) = (0x00); // NR22
+    *gb_MMU_access_internal(0xFF19) = (0xBF); // NR24
+    *gb_MMU_access_internal(0xFF1A) = (0x7F); // NR30
+    *gb_MMU_access_internal(0xFF1B) = (0xFF); // NR31
+    *gb_MMU_access_internal(0xFF1C) = (0x9F); // NR32
+    *gb_MMU_access_internal(0xFF1E) = (0xBF); // NR33
+    *gb_MMU_access_internal(0xFF20) = (0xFF); // NR41
+    *gb_MMU_access_internal(0xFF21) = (0x00); // NR42
+    *gb_MMU_access_internal(0xFF22) = (0x00); // NR43
+    *gb_MMU_access_internal(0xFF23) = (0xBF); // NR30
+    *gb_MMU_access_internal(0xFF24) = (0x77); // NR50
+    *gb_MMU_access_internal(0xFF25) = (0xF3); // NR51
+    *gb_MMU_access_internal(0xFF26) = (g_GB.gb_model == gb_dev_SGB) ? (0xF0) : (0xF1); // NR52
+    *gb_MMU_access_internal(0xFF40) = (0x91); // LCDC
+    *gb_MMU_access_internal(0xFF42) = 0x00; // SCY 
+    *gb_MMU_access_internal(0xFF43) = 0x00; // SCX
+    *gb_MMU_access_internal(0xFF45) = (0x00); // LYC
+    *gb_MMU_access_internal(0xFF47) = (0xFC); // BGP
+    *gb_MMU_access_internal(0xFF48) = (0xFF); // OBP0
+    *gb_MMU_access_internal(0xFF49) = (0xFF); // OBP1
+    *gb_MMU_access_internal(0xFF4A) = (0x00); // WY
+    *gb_MMU_access_internal(0xFF4B) = (0x00); // WX
+    *gb_MMU_access_internal(0xFFFF) = (0x00); // IE
+                                              /* TODO: Scroll Nintendo logo from $104:$133 */
+                                              /* TODO: Add cheksum verification - LSB_of(SUM($143:$14d)+25) == 0 */
+}

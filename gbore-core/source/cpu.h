@@ -94,7 +94,7 @@ static_assert (sizeof(gb_cpu_registers_s) == 12, "incorrect pragma pack");
 //
 // CPU External Functions
 //
-void gb_CPU_init(void);
+void gb_CPU_initialize(void);
 byte_t gb_CPU_step(void);
 
 byte_t gb_CPU_interrupt(gb_addr_t vector);
@@ -141,33 +141,5 @@ enum gb_alu_mode_e
     gb_ALU_CP = 0b111,
 } gb_alu_mode_e;
 
-//Bit Rotations
-#define DIR_LEFT  0
-#define DIR_RIGHT 1
-
-#define STOR8(ADDR) (*gb_MMU_store8((ADDR)))
-#define LOAD8(ADDR)  (*gb_MMU_load8((ADDR)))
-
-#define STOR16(ADDR) (*gb_MMU_store16((ADDR)))
-#define LOAD16(ADDR)  (*gb_MMU_load16((ADDR)))
-
-//
-//Selectors for 8-bit registers, in case when `d` is 0x6, we need to load/store to memory.
-//
-#define REG8_WRITE(d) (*( ((d) != HL_INDIRECT) ? g_regmap_D[(d)] : gb_MMU_store8(HL) ))
-#define REG8_READ(d)  (*( ((d) != HL_INDIRECT) ? g_regmap_D[(d)] : gb_MMU_load8(HL)  ))
-
-
-//
-//
-// Selectors for 16-bit registers
-//
-#define RM1 1 // RegMap #1 selects one of: BC,DE,HL,SP registers
-#define RM2 2 // RegMap #2 selects one of: BC,DE,HL,AF registers
-
-#define REG16_RW(r, rmap) (*((rmap == RM1) ? g_regmap_R[(r)] : g_regmap_R2[(r)]))
-
-#define REG16_READ  REG16_RW
-#define REG16_WRITE REG16_RW
 
 

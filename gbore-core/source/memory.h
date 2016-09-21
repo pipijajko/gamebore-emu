@@ -16,49 +16,49 @@ limitations under the License.
 #pragma once
 
 // MMU Defines
+#define GB_ROMBANK_BYTES       0x4000
+#define GB_RAMBANK_BYTES       0x2000
+#define GB_WRAMBANK_BYTES      0x1000
+#define GB_ECHORAM_BYTES       0x1F81
+#define GB_MMIO_HRAM_BYTES     0x007F
 #define GB_MEMBANK_SIZE        0x4000
 #define GB_SWITCHBANK_OFFSET   0x4000
 #define GB_TOTAL_MEMSIZE       0x10000
+#define GB_OAM_DMA_TRANSFER_SIZE  0x9F
 
+typedef struct gb_memory_range_s
+{
+    uint32_t begin; // memory section begin address (inclusive)
+    uint32_t end;   // memory section end address (exclusive)
+    int       index; // index of the section in the memory view
 
-//TODO:Move rest of GB_IO_* here?
-#define GB_IO_OAM_DMA 0xFF46
-
-
+} gb_memory_range_s;
 
 struct gb_machine_s;
 
+/* Memory controller callbacks*/
+typedef void* gbmmu_section_context_h; // Memory controller internal context
+typedef gb_word_t (gbmmu_access_evt)(gb_addr_t const, char const, gbmmu_section_context_h*);
+typedef gbmmu_access_evt*  gbmmu_access_pfn;
 
-typedef struct gb_memory_unit_s { 
-    
-    gb_word_t      mem[GB_TOTAL_MEMSIZE]; //operational memory 
-    struct gb_cart source; //cartridge buffer
+typedef uint16_t gb_section_attribs_t;
+#define GB_MEMATTR_READONLY     0x1
+#define GB_MEMATTR_CARTRIDGE    0x2
+#define GB_MEMATTR_INVALID      0x4
 
+typedef struct gb_memory_section_s
+{
+    byte_t* data;
 
-    gb_dword_t     ROM_write_buffer; //if anyone tries to write ROM, let him write here
-    gb_addr_t      last_read_addr;    
-    gb_addr_t      last_write_addr;
-    //bool           mmu_verbose; //or mmu_hooks_enabled 
+    gb_section_attribs_t attribs; //R, W, RW, Extension, storeVal
+    gbmmu_access_pfn mbc_hook;
 
-    struct {
-        bool is_OAM_DMA_scheduled;
-
-
-        bool     IO_port_write_detected;
-        gb_addr_t IO_port_write_address;    
-        gb_word_t IO_port_pre_write_value; //SIO value before modification
-
-    } SIO; // Special IO directives (for side effects)
-    
-} gb_memory_unit_s;
-
-
+}gb_memory_section_s;
 
 
 //////////////////////////////////////////////////////
-// Define Memory Sections
+// Define Generic Memory Sections
 /////////////////////////////////////////////////////
-
 #define FOREACH_MEMORY_SECTION(MEMSEC)          \
     MEMSEC(0x0000, 0x4000, ROM_BANK_0)          \
     MEMSEC(0x4000, 0x8000, ROM_BANK_S)          \
@@ -71,57 +71,33 @@ typedef struct gb_memory_unit_s {
     MEMSEC(0xFF00, 0xFF4C, IO_PORTS)            \
     MEMSEC(0xFF4C, 0xFF80, UNUSABLE_EMPTY_2)    \
     MEMSEC(0xFF80, 0xFFFF, RAM_INTERNAL_EXT)    \
-    MEMSEC(0xFFFF, 0xFFFF, INTERRUPT_ENABLE)
+    MEMSEC(0xFFFF, 0x10000, INTERRUPT_ENABLE)
 
 
-//Access memory in special 's' mode - without any checks and tracing in MMU module
-#define GB_MMU_ACCESS_INTERNAL(address) gb_MMU_access((address), 's')
+#define MEMORY_SECTION_N 12
+
+//////////////////////////////////////////////////////
+// Use X-MACROS to generate memory_view layout 
+//////////////////////////////////////////////////////
+#include "memory_xmacros.h"
+
+typedef struct gb_memory_unit_s { 
+    // Operational memory is divided into sections.
+    gb_memory_section_s    memory_view[MEMORY_SECTION_N]; 
+    gbmbc_h                cartridge;
+    void * _private;
+} gb_memory_unit_s;
+
+
 
 //TODO:Enable LTCG for inlining
-gb_word_t * gb_MMU_access(gb_addr_t const address, char const mode);
+gb_word_t *gb_MMU_access_internal(gb_addr_t const address);
+gb_word_t  gb_MMU_load8(gb_addr_t const address);
+void       gb_MMU_store8(gb_addr_t const address, gb_word_t const value);
 
+gb_dword_t gb_MMU_load16(gb_addr_t const address);
+void       gb_MMU_store16(gb_addr_t const address, gb_dword_t const value);
 
-//
-// Type and l/r-value restraining wrappers for each type/size of memory operation.
-//
-__forceinline
-gb_word_t const * const
-gb_MMU_load8(gb_addr_t const address) {
-
-    return gb_MMU_access(address, 'r');
-}
-
-
-__forceinline
-gb_dword_t const * const
-gb_MMU_load16(gb_addr_t const address) {
-
-    return (gb_dword_t*)gb_MMU_access(address, 'r');
-}
-
-
-__forceinline
-gb_word_t * const
-gb_MMU_store8(gb_addr_t const address) {
-
-    return gb_MMU_access(address, 'w');
-}
-
-
-
-
-__forceinline
-gb_dword_t * const
-gb_MMU_store16(gb_addr_t const address) {
-
-    return (gb_dword_t*)gb_MMU_access(address, 'w');
-}
-
-
-
-void 
-gb_MMU_cartridge_init(void const * const cart_data, size_t const cart_data_size);
-
-void gb_MMU_step();
-
+void gb_MMU_initialize_internal_RAM();
+bool gb_MMU_validate_is_memory_continous();
 

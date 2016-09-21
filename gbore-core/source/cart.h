@@ -14,12 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 #pragma once
-
-
 //
 // COFFSET
 //
-
 #define GB_OFFSET_COLOR    0x143
 #define GB_OFFSET_SGB      0x146
 #define GB_OFFSET_CART     0x147
@@ -30,7 +27,6 @@ limitations under the License.
 #define GB_OFFSET_MASKROMV 0x14C
 #define GB_OFFSET_CMPLMNTC 0x14D
 #define GB_OFFSET_CHECKSUM 0x14E
-
 
 enum gb_cart_type {
     gb_ROM_ONLY = 0x00, //256kb ROM 0000-7FFF
@@ -63,8 +59,6 @@ enum gb_cart_type {
 //TODO: MBC1 memory mode selector
 //TODO: MBC1 memory ROM/RAM bank selector
 //TODO: MBC2 memory ROM bank selector
-
-
 enum gb_cart_romsize {
     gb_ROM_x2_32KiB = 0x0, //2x 8KB banks
     gb_ROM_x4_64KiB = 0x1,
@@ -86,8 +80,6 @@ enum gb_cart_ramsize {
     //TODO: some special entries $52,$53,$54
 };
 
-
-
 struct gb_cart {
     byte_t const * buffer;
     size_t  size;
@@ -95,33 +87,37 @@ struct gb_cart {
     enum gb_cart_ramsize  RAM;
     enum gb_cart_type Type;
 };
+typedef struct { void* unused; } gbmbc_h; //opaque handle for memory bank controller
+struct gb_machine_s;
+errno_t gb_CART_initialize(struct gb_machine_s *const instance, 
+                         void const*const cart_data, 
+                         size_t const cart_size, 
+                         gbmbc_h * const handle);
+
+void gb_CART_map_into_memory_view(gbmbc_h handle);
+void gb_CART_destroy(gbmbc_h handle);
+
+//////////////////////////////////////////////////////
+// MBC1 Calls (TODO)
+/////////////////////////////////////////////////////
+/*
+MBC1 Notes
+
+0000-3FFF - ROM Bank 00 (Read Only)
+4000-7FFF - ROM Bank 01-7F (Read Only)
+A000-BFFF - RAM Bank 00-03, if any (Read/Write)
+0000-1FFF - RAM Enable (Write Only)  (00h  Disable RAM (default) / 0Ah  Enable RAM)
+
+2000-3FFF - ROM Bank Number (Write Only)
+Writing a value (XXXXBBBB - X = Don't cares, B = bank select bits) into
+2000-3FFF area will select an appropriate ROM bank at 4000-7FFF.
 
 
+The least significant bit of the upper address byte must be one to select a
+ROM bank. For example the following addresses can be used to select a ROM
+bank: 2100-21FF, 2300-23FF, 2500-25FF, ..., 3F00-3FFF.
+The suggested address range to use for MBC2 rom bank selection is 2100-21FF.
+*/
 
-
-
-
-
-
-//enum gb_cart_romsize_bit {
-//    gb_ROM_x2_256Kbit = 0x0, //2x 8KB banks
-//    gb_ROM_x4_512Kbit = 0x1,
-//    gb_ROM_x4_1MBit = 0x2,
-//    gb_ROM_x16_2MBit = 0x3,
-//    gb_ROM_x32_4MBit = 0x4,
-//    gb_ROM_x64_8MBit = 0x5,
-//    gb_ROM_x128_16MBit = 0x6,
-//    //TODO: some special entries $52,$53,$54
-//};
-//
-//
-//
-//enum gb_cart_ramsize_bit {
-//
-//    gb_RAM_x0_None = 0x0,
-//    gb_RAM_x1_16Kbit = 0x1,
-//    gb_RAM_x1_64Kbit = 0x2,
-//    gb_RAM_x4_256Kbit = 0x3,
-//    gb_RAM_x16_1MKbit = 0x4,
-//    //TODO: some special entries $52,$53,$54
-//};
+//gb_word_t * gb_MMU_access_ROM(gb_addr_t const address, char const mode);
+//gb_word_t * gb_MMU_access_MBC1(gb_addr_t const address, char const mode);

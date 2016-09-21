@@ -232,8 +232,8 @@ gbdbg_CPU_dumpregs( gb_debugdata_h handle)
     
     if (!dbg->print_enabled && !dbg->log_enabled) return;
 
-    byte_t const IE = *GB_MMU_ACCESS_INTERNAL(GB_IO_IE);
-    byte_t const IF = *GB_MMU_ACCESS_INTERNAL(GB_IO_IF);
+    byte_t const IE = *gb_MMU_access_internal(GB_IO_IE);
+    byte_t const IF = *gb_MMU_access_internal(GB_IO_IF);
     byte_t const IME = (byte_t)dbg->instance->interrupts.IME;
     
     offset0 = sprintf_s(linebuf, GBDBG_MAX_LEN, "AF:%04X, BC:%04X, DE:%04X, HL:%04X, SP:%04X, PC:%04X, IF:%02X, IE:%02X, IME:%u"

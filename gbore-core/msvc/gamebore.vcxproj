@@ -183,6 +183,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\source\cart.c" />
     <ClCompile Include="..\source\cpu.c" />
     <ClCompile Include="..\source\dispatch_tables.c" />
     <ClCompile Include="..\source\display.c" />
@@ -196,6 +197,7 @@
   <ItemGroup>
     <ClInclude Include="..\source\cart.h" />
     <ClInclude Include="..\source\cpu.h" />
+    <ClInclude Include="..\source\cpu_dsl.h" />
     <ClInclude Include="..\source\dispatch_tables.h" />
     <ClInclude Include="..\source\display.h" />
     <ClInclude Include="..\source\gamebore.h" />
@@ -204,6 +206,7 @@
     <ClInclude Include="..\source\input.h" />
     <ClInclude Include="..\source\interrupts.h" />
     <ClInclude Include="..\source\memory.h" />
+    <ClInclude Include="..\source\memory_xmacros.h" />
     <ClInclude Include="..\source\types.h" />
   </ItemGroup>
   <ItemGroup>

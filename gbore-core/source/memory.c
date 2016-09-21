@@ -18,286 +18,179 @@ limitations under the License.
 
 #include "gamebore.h"
 
-
-
-struct gb_memory_section {
-    gb_addr_t begin;
-    gb_addr_t end;
-    void *  handler;
-};
-
-//
-// Generate memory-section data and lookups
-//
-#define GENERATE_ID_ENUM(a, b, ENUM) gb_##ENUM,
-#define GENERATE_TXTLOOKUP(a, b, STRING) #STRING,
-#define GENERATE_STRUCT_INIT(abegin, aend, NAME) {abegin, aend, NULL},
-
-
-// generate section structs
-static const struct gb_memory_section gb_mmu_sec[] = {
-    FOREACH_MEMORY_SECTION(GENERATE_STRUCT_INIT)
-};
-
-
-//verify size
-#define MEMORY_SECTION_N (sizeof(gb_mmu_sec)/sizeof(gb_mmu_sec[0]))
-static_assert(MEMORY_SECTION_N == 12, "gb_mmu_sec is not const size array or new sections were added");
-
-
-enum gb_mem_section {
-    FOREACH_MEMORY_SECTION(GENERATE_ID_ENUM)
-};
-
-
-const char *gb_mem_section2text[] = {
-    FOREACH_MEMORY_SECTION(GENERATE_TXTLOOKUP)
-};
-
-#undef GENERATE_ID_ENUM
-#undef GENERATE_TXTLOOKUP
-#undef GENERATE_STRUCT_INIT
-
-
-//
-// To delegate the side effects let's not act (eg. bank switch, VideoSettings adjust etc.) on the 
-// data written.
-// 
-
-
-gb_word_t* gb_MMU_access(gb_addr_t const address, char const mode) 
+__forceinline
+gb_memory_range_s gb_MMU_get_section_range(const gb_addr_t address)
 {
-    gb_memory_unit_s *const u = &g_GB.m; //global 
-    
+    //TODO: figure out faster or static lookup
+    //TODO: heuristic to precalculate starting index
 
-    if ('r' == mode) {
-        //
-        // Seems like for read we can skip additional actions.
-        // Just put an assert here to verify that no one messes with echo memory
-        //
-        if (IN_RANGE(address, 0xE000, 0xFE00)) {
-            //Shadow memory access
-            gb_addr_t offset = address - 0xE000;
-            return &u->mem[0xC000+offset];
+    for (int i = 0; i < MEMORY_SECTION_N; i++) {
+        gb_memory_range_s const * const section = &gb_memory_ranges[i];
+        if (IN_RANGE(address, section->begin, section->end)) {
+            return  *section;
         }
-        return &u->mem[address];
     }
-    if ('w' == mode) {
-
-        //Special IO 
-        // Maybe a more generic handler which just saves modified address and prev value in
-        // SIO range. Now we have two switch()es :(
-
-        if (address == GB_IO_OAM_DMA) {
-            u->SIO.is_OAM_DMA_scheduled = true;
-        }
-
-        if (address < 0x8000) {
-            gdbg_trace(g_GB.dbg,"Invalid Memory Access! Write over ROM,@0x%04x\n", address);
-            static gb_word_t dummy_memory[2]; //to return for ROM write access
-            return dummy_memory;
-        }
-        
-        //
-        // For write find memory section handler and run it. 
-        // If handler is NULL, ignore.
-        //
-        for (size_t i = address / 0x4000; i < MEMORY_SECTION_N; i++) {
-            
-            
-            if (IN_RANGE(address, gb_mmu_sec[i].begin, gb_mmu_sec[i].end)) {
-
-                if (i == gb_RAM_INTERNAL_ECHO) {
-                    //Shadow memory access
-                    gb_addr_t offset = address - 0xE000;
-                    return &u->mem[0xC000 + offset];
-                }
-                // Special IO:
-                else if (i == gb_IO_PORTS) {
-                    u->SIO.IO_port_write_detected  = true;
-                    u->SIO.IO_port_write_address   = address;
-                    u->SIO.IO_port_pre_write_value = u->mem[address];
-
-
-                }
-                //gdbg_trace(gb->dbg, "Write @0x%04X in %s\n", address, gb_mem_section2text[i]);
-                break;
-
-            }
-        }
-        return &u->mem[address];
-    }
-    if ('s' == mode || 'i' == mode) {
-
-        //Special/Silent or Internal mode - perform no checks and no tracing
-        return &u->mem[address];
-    }
-
-    assert(false);
-    return NULL;
+    //We should never reach this point
+    StopIf(true, abort(), "FATAL: Could not map address 0x%hx to any memory section", address);
+    return (gb_memory_range_s){ 0, 0, 0 };
 }
 
 
-void gb_MMU_step() 
+__forceinline
+gb_word_t gb_MMU_load8(gb_addr_t const address)
 {
-    gb_memory_unit_s *const u = &g_GB.m; //global 
-    if (u->SIO.is_OAM_DMA_scheduled) {
-        u->SIO.is_OAM_DMA_scheduled = false;
+    gb_memory_range_s const sec_r = gb_MMU_get_section_range(address);
+    return g_GB.m.memory_view[sec_r.index].data[address - sec_r.begin];
+}
 
-        //
-        // simple implemention: missing clock sync (should take 5x40 cycles)
-        // 
-        gb_addr_t const dest_address  = 0xFE00; //OAM start address
-        gb_addr_t const source_address = u->mem[GB_IO_OAM_DMA] << 8;
-        size_t const transfer_size = 0x9F;
-        
-        gdbg_trace(g_GB.dbg, "OAM DMA 0x%04hx<--0x%04hx (0x%02xB)",
-                   dest_address, source_address, transfer_size);
 
-        memcpy_s(&u->mem[dest_address],
-                 GB_TOTAL_MEMSIZE - dest_address,
-                 &u->mem[source_address],
-                 transfer_size);
+void gb_MMU_OAM_DMA_execute(gb_word_t IO_OAM_DMA_port_value) 
+{
+    gb_addr_t const dest_address   = 0xFE00; //OAM start address
+    gb_addr_t const source_address = (IO_OAM_DMA_port_value << 8);
+    //
+    // naive implemention:  missing clock sync (should take 5x40 cycles)
+    // 
+    for (uint16_t i = 0x00; i < GB_OAM_DMA_TRANSFER_SIZE; i++) {
+        *gb_MMU_access_internal(dest_address + i) = *gb_MMU_access_internal(source_address + i);
     }
+    gdbg_trace(g_GB.dbg, "Executed OAM DMA 0x%04hx<--0x%04hx (0x%02xB)\n",
+               dest_address, source_address, GB_OAM_DMA_TRANSFER_SIZE);
 
-    if (u->SIO.IO_port_write_detected) {
-        u->SIO.IO_port_write_detected = false;
-        gb_addr_t const port_address = u->SIO.IO_port_write_address;
-        //gb_word_t const old_value = u->SIO.IO_port_pre_write_value;
-        //gb_word_t const new_value = u->mem[port_address];
+}
 
-        switch (port_address) {
-        //IO-PORTs that autoreset on write
+
+void gb_MMU_store8(gb_addr_t const address, gb_word_t const value) 
+{
+    gb_memory_range_s const sec_r       = gb_MMU_get_section_range(address);
+    gb_memory_section_s * const section = &g_GB.m.memory_view[sec_r.index];
+    bool is_writable                    = (section->attribs & GB_MEMATTR_READONLY) == 0;
+
+    //temporary here for debug only!
+    if (!is_writable) gdbg_trace(g_GB.dbg, "Illegal internal access below HRAM!");
+
+    //
+    //  Special I/O write:
+    //
+    if (gb_IO_PORTS == sec_r.index) {
+
+        switch (address) {
+        case GB_IO_OAM_DMA:
+            gb_MMU_OAM_DMA_execute(value);
+            is_writable = false;
+        
         case GB_IO_DIV:
         case GB_IO_LY:
-            u->mem[port_address] = 0x00;
+            //IO-PORTs that autoreset on write:
+            section->data[address - sec_r.begin] = 0;
+            is_writable = false;
             break;
-
-        //Read-only registers
-        case GB_IO_LCDC:
-            //F-U
+        default:
             break;
         }
     }
+    if(is_writable) section->data[address - sec_r.begin] = value;
+}
+    
 
-
+gb_dword_t gb_MMU_load16(gb_addr_t const address) 
+{
+    gb_dword_t lo = gb_MMU_load8(address);
+    gb_dword_t hi = gb_MMU_load8(address + 1);
+    return (hi << 8) + lo;
 }
 
 
-void gb_MMU_cartridge_init(void const * cart_data, size_t const cart_data_size) {
-    gb_memory_unit_s *const u = &g_GB.m; //global instance
-    memset(u, 0, sizeof(gb_memory_unit_s));
+void gb_MMU_store16(gb_addr_t const address, gb_dword_t const value) 
+{
+    gb_word_t lo = value & 0xFF;
+    gb_word_t hi = (value & 0xFF00) >> 8;
+    gb_MMU_store8(address, lo);
+    gb_MMU_store8(address + 1, hi);
+}
 
-    //if (!cart_data || !cart_data_size) return;
 
-    u->source.buffer = cart_data;
-    u->source.size = cart_data_size;
-    //
-    // Copy ROM Bank #0 of cartdidge to main memory
-    //
-    if (NULL != u->source.buffer){
+void gb_MMU_initialize_internal_RAM() 
+{
+    gb_memory_unit_s * const u    = &g_GB.m; //global instance
+    gb_memory_range_s range;
 
-        memcpy_s(&u->mem[0x0000], GB_TOTAL_MEMSIZE, u->source.buffer, GB_MEMBANK_SIZE);
+    byte_t * const internal_memory = calloc(1, GB_TOTAL_MEMSIZE);
+    u->_private = internal_memory; //keep in `_private` for free();
+    StopIf(!internal_memory, abort(), "Internal memory calloc() failed! Abort()");
 
-        if (u->source.size > GB_MEMBANK_SIZE) {
-            //cartridge has multiple banks
-            // Copy Switchable ROM Bank of cartdidge to main memory
-            memcpy_s(&u->mem[GB_SWITCHBANK_OFFSET], 
-                    (GB_TOTAL_MEMSIZE - GB_SWITCHBANK_OFFSET),
-                    &u->source.buffer[GB_SWITCHBANK_OFFSET], 
-                    GB_MEMBANK_SIZE);
+
+    // Initialize all memory sections (without data ptr) to mapping to internal memory.
+    // This is not most readable, but we will have a continous block of memory.
+    // Regardless of how fine-grained we have the MEMORY SECTION mapping.
+
+    // Sections corresponding to EXT_RAM/ROM sections shall be overwritten by gb_CART_map function.
+
+    for (int i = 0; i < MEMORY_SECTION_N; i++) {
+        range = gb_memory_ranges[i];
+        if (NULL == u->memory_view[i].data ) {
+            u->memory_view[i].data = &internal_memory[range.begin];
         }
     }
-
-    u->source.Type = u->mem[GB_OFFSET_CART];
-    u->source.ROM  = u->mem[GB_OFFSET_ROMSIZE];
-    u->source.RAM  = u->mem[GB_OFFSET_RAMSIZE];
-
-
-    /* TODO: Scroll Nintendo logo from $104:$133 */
-    /* TODO: Add cheksum verification - LSB_of(SUM($143:$14d)+25) == 0 */
-
-
-
-    u->mem[0xFF05] = u->mem[0x0000]; // TIMA
-    u->mem[0xFF06] = u->mem[0x0000]; // TMA
-    u->mem[0xFF07] = u->mem[0x0000]; // TAC
-    u->mem[0xFF10] = u->mem[0x0080]; // NR10
-    u->mem[0xFF11] = u->mem[0x00BF]; // NR11
-    u->mem[0xFF12] = u->mem[0x00F3]; // NR12
-    u->mem[0xFF14] = u->mem[0x00BF]; // NR14
-    u->mem[0xFF16] = u->mem[0x003F]; // NR21
-    u->mem[0xFF17] = u->mem[0x0000]; // NR22
-    u->mem[0xFF19] = u->mem[0x00BF]; // NR24
-    u->mem[0xFF1A] = u->mem[0x007F]; // NR30
-    u->mem[0xFF1B] = u->mem[0x00FF]; // NR31
-    u->mem[0xFF1C] = u->mem[0x009F]; // NR32
-    u->mem[0xFF1E] = u->mem[0x00BF]; // NR33
-    u->mem[0xFF20] = u->mem[0x00FF]; // NR41
-    u->mem[0xFF21] = u->mem[0x0000]; // NR42
-    u->mem[0xFF22] = u->mem[0x0000]; // NR43
-    u->mem[0xFF23] = u->mem[0x00BF]; // NR30
-    u->mem[0xFF24] = u->mem[0x0077]; // NR50
-    u->mem[0xFF25] = u->mem[0x00F3]; // NR51
-    u->mem[0xFF26] = (g_GB.gb_model == gb_dev_SGB) ? u->mem[0x00F0] : u->mem[0x00F1]; // NR52
-    u->mem[0xFF40] = u->mem[0x0091]; // LCDC
-    u->mem[0xFF42] = 0x00; // SCY 
-    u->mem[0xFF43] = 0x00; // SCX
-    u->mem[0xFF45] = u->mem[0x0000]; // LYC
-    u->mem[0xFF47] = u->mem[0x00FC]; // BGP
-    u->mem[0xFF48] = u->mem[0x00FF]; // OBP0
-    u->mem[0xFF49] = u->mem[0x00FF]; // OBP1
-    u->mem[0xFF4A] = 0x00; // WY
-    u->mem[0xFF4B] = 0x00; // WX
-    u->mem[0xFFFF] = u->mem[0x0000]; // IE
-
-
+    //
+    //Re-map RAM_INTERNAL to ECHO
+    //
+    u->memory_view[gb_RAM_INTERNAL_ECHO].data  = u->memory_view[gb_RAM_INTERNAL].data;
 }
 
 
+gb_word_t * gb_MMU_access_internal(gb_addr_t const address) 
+{
+    // Unsafe memory access via pointer for internal subsystems (interrupter, display, input)
+    // TODO: Optimize by starting indexing @ IO_ports (most common)
+    gb_memory_range_s sec_r = gb_MMU_get_section_range(address);
+    return &g_GB.m.memory_view[sec_r.index].data[address - sec_r.begin];
+}
 
+//TODO: consider static section lookup instead of hint version of internal access
+//gb_word_t * gb_MMU_access_internal_hint(gb_addr_t const address, enum gb_mem_section hint) {
+//    // Unsafe memory access via pointer for internal subsystems (interrupter, display, input)
+//    gb_memory_range_s sec_r = gb_memory_ranges[(int)hint];
+//    if (!IN_RANGE(address, sec_r.begin, sec_r.end)) {
+//        sec_r = gb_MMU_get_section_range(address);
+//        gdbg_trace(g_GB.dbg, "gb_MMU_access_internal_hint: INCORRECT HINT:%d!\n"
+//                   "Actual memory section:%d", (int)hint, sec_r.index);
+//    }
+//    return &g_GB.m.memory_view[sec_r.index].data[address - sec_r.begin];
+//}
 
-/*
-Gameboy Memory Bank Controller 1 (MBC1)
+bool gb_MMU_validate_is_memory_continous() 
+{
+    gb_memory_unit_s const * const u = &g_GB.m; //global 
+    uint32_t total_memsize = 0;
+    uint32_t prev_section_end = 0;
 
+    for (int i = 0; i < MEMORY_SECTION_N; i++) {
 
-Two modes:
- * 16Mbit ROM 8KB RAM - default on powerup
- * 4Mbit ROM/32KB RAM
+        gb_memory_range_s range = gb_memory_ranges[i];
 
+        if (NULL == u->memory_view[i].data) {
+            gdbg_trace(g_GB.dbg, "Memory section:%d has no memory mapped!\n"
+                       "Make sure you initialzed MMUs internal RAM and CART first!", i);
+            return false;
+        }
 
-Writing given word into 6000-7FFF area will select memory model:
--------0 -> ROM:16/RAM:8
--------1 -> ROM:4/RAM:32
+        if (range.begin != prev_section_end) {
+            gdbg_trace(g_GB.dbg, "Memory section:%d is not continous!\n"
+                       "Fix FOREACH_MEMORY_SECTION macro!", i);
+            return false;
+        }
 
+        prev_section_end = range.end;
+        total_memsize += range.end - range.begin;
+    }
 
+    if (GB_TOTAL_MEMSIZE != total_memsize) {
 
-Writing given word into 2000-3FFF area will select ROM bank at $4000:
----BBBBB
----00000 -> ROM Bank #1 (yes, 1)
----00001 -> ROM Bank #1
-
-In 16/8 mode writing given value in 4000-5FFF area will set the two 
-most significant addres bits to BB.
-------BB
-
-
-In 4/32 mode writing given value in 4000-5FFF area will select appropriate RAM bank
-at A000-C000.
-Before you can read or write to a RAM bank you have to enable
-it by writing a XXXX1010 into 0000-1FFF area. To
-disable RAM bank operations write any value but
-XXXX1010 into 0000-1FFF area. Disabling a RAM bank
-probably protects that bank from false writes
-during power down of the GameBoy. (NOTE: Nintendo
-suggests values $0A to enable and $00 to disable
-RAM bank!!)
-
-
-
-( '-' don't matter)
-
-
-*/
-
-
+        gdbg_trace(g_GB.dbg, "Memory sections do not cover full %uBytes.\n"
+                   "Only %uBytes are present.\n"
+                   "Fix FOREACH_MEMORY_SECTION macro!", GB_TOTAL_MEMSIZE, total_memsize);
+        return false;
+    }
+    return true;
+}

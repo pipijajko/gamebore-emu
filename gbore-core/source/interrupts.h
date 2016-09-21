@@ -128,12 +128,9 @@ typedef struct gb_interrupt_data_s
 
 } gb_interrupt_data_s;
 
-
+void gb_INTERRUPT_ioports_initialize();
 void gb_INTERRUPT_step(byte_t ticks_delta);
 void gb_INTERRUPT_request(byte_t const interrupt_signal_flag);
-
-
-
 
 //
 // Memory mapped IO (IO_PORTS) addresses:
@@ -199,3 +196,4 @@ void gb_INTERRUPT_request(byte_t const interrupt_signal_flag);
 /* Divider register incremented 16384 times per sec. (R/W) Writing sets it to 0.
 */
 #define GB_IO_DIV 0xFF04 
+#define GB_IO_OAM_DMA 0xFF46
