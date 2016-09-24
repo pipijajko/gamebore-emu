@@ -173,6 +173,7 @@ void gb_INTERRUPT_update_timers(void) //byte_t ticks_delta) )
     // Temporary here.
     //
     if (0x8000000000000000 & interrupts->total_ticks) {
+        printf("DUPA DUPA DUPA");
         //
         // If the oldest bit is set in `total_ticks` 
         // rebase all tracked uint64 tick values
@@ -205,6 +206,12 @@ void gb_INTERRUPT_step(byte_t ticks_delta)
     gb_word_t * const LY         = gb_MMU_access_internal(GB_IO_LY);
     bool const LCDC_enabled      = BIT_GET_N(*LCDC, 7);
     bool const LCDC_toggled     = (LCDC_enabled != (interrupts->display_mode != gb_LCDC_DISABLED));
+
+
+    uint32_t const mode_ticks       = interrupts->display_modeclock;
+    gb_LCDC_mode const current_mode = interrupts->display_mode;
+    gb_LCDC_mode next_mode          = gb_LCDC_NO_CHANGE;
+    byte_t STAT_event               = 0x00; //event for STAT interrupt
     /*
     LCDC_enabled| current_mode      | (mode eval) | result   | LCDC toggled?
     0           |  DISABLED         |    0        |    0!=0  |   false
@@ -212,9 +219,7 @@ void gb_INTERRUPT_step(byte_t ticks_delta)
     1           |  DISABLED         |    0        |    1!=0  |   true
     1           |  (H/VBLANK,OAM..) |    1        |    1!=1  |   false
     */
-
-
-    if  (LCDC_toggled){
+    if (LCDC_toggled) {
         //
         // Detected LCD controller toggle:
         //
@@ -223,19 +228,15 @@ void gb_INTERRUPT_step(byte_t ticks_delta)
             interrupts->display_mode = gb_LCDC_HBLANK;
             interrupts->display_modeclock = 0;
 
-        }else{
+        } else {
             gdbg_trace(g_GB.dbg, "LCDC DISABLED!");
             interrupts->display_mode = gb_LCDC_DISABLED;
             interrupts->display_line = 0;
             interrupts->display_modeclock = 0;
+            next_mode = gb_LCDC_DISABLED;
             *LY = 0x00;
         }
     }
-
-    uint32_t const mode_ticks       = interrupts->display_modeclock;
-    gb_LCDC_mode const current_mode = interrupts->display_mode;
-    gb_LCDC_mode next_mode          = gb_LCDC_NO_CHANGE;
-    byte_t STAT_event               = 0x00; //event for STAT interrupt
                               
     // Evaluate mode changes only if controller is enabled & least GB_TICKS_MINIMAL has passed.
     if (LCDC_enabled && mode_ticks >= GB_TICKS_MINIMAL) {
@@ -303,7 +304,6 @@ void gb_INTERRUPT_step(byte_t ticks_delta)
         gb_INTERRUPT_request(GB_INT_FLAG_LCDC_STAT);
     }
 
-
     if (next_mode != gb_LCDC_NO_CHANGE) {
 
         char* modename = NULL;
@@ -312,25 +312,31 @@ void gb_INTERRUPT_step(byte_t ticks_delta)
         case gb_LCDC_VBLANK:    modename = "V-BLANK"; break;
         case gb_LCDC_OAM_READ:  modename = "OAM READ"; break;
         case gb_LCDC_VRAM_READ: modename = "OAM+VRAM READ"; break;
+        case gb_LCDC_DISABLED:  modename = "LCDC disabled"; break;
         }
-
         gdbg_trace(g_GB.dbg,"DISPLAY::new_mode:%s,ticks:%u,LY:%hhu,STAT:0x%x,LCDC:0x%x\n", 
                    modename,interrupts->display_modeclock, *LY, *STAT, *LCDC);
         
         interrupts->display_mode = next_mode;
         interrupts->display_modeclock = 0;
+        //
+        // Update STAT (LCDC Status) register:
+        //
+        if (gb_LCDC_DISABLED != next_mode) {
 
+            if (((*STAT) & 0b11) != (byte_t)current_mode) {
 
-        if (((*STAT) & 0b11) != (byte_t)current_mode) {
+                gdbg_trace(g_GB.dbg, "DISPLAY::current_mode:%d doesn't match STAT MODE FLAG:%hhu",
+                           current_mode, ((*STAT) & 0b11));
+            }
+            // Clear & Update Mode Flag
+            *STAT &= ~0b11; 
+            *STAT |= (next_mode & 0b11);
 
-            gdbg_trace(g_GB.dbg, "DISPLAY::current_mode:%d doesn't match STAT MODE FLAG:%hhu",
-                       current_mode, ((*STAT) & 0b11));
-
+        } else {
+            // We are disabling LCDC, enable CPU access to all memory
+            *STAT &= ~0b11;
         }
-
-        //Clear & Update MODE FLAG in STAT
-        *STAT &= ~0b11; 
-        *STAT |= (next_mode & 0b11);
     }
 
 
