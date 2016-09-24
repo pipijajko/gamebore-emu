@@ -54,7 +54,7 @@ void gb_MMU_OAM_DMA_execute(gb_word_t IO_OAM_DMA_port_value)
     for (uint16_t i = 0x00; i < GB_OAM_DMA_TRANSFER_SIZE; i++) {
         *gb_MMU_access_internal(dest_address + i) = *gb_MMU_access_internal(source_address + i);
     }
-    gdbg_trace(g_GB.dbg, "Executed OAM DMA 0x%04hx<--0x%04hx (0x%02xB)\n",
+    gdbg_trace(g_GB.dbg, "Executed OAM DMA 0x%04hx<--0x%04hx (0x%02x)\n",
                dest_address, source_address, GB_OAM_DMA_TRANSFER_SIZE);
 
 }

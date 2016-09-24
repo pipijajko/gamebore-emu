@@ -24,7 +24,7 @@ limitations under the License.
 #define GB_MEMBANK_SIZE        0x4000
 #define GB_SWITCHBANK_OFFSET   0x4000
 #define GB_TOTAL_MEMSIZE       0x10000
-#define GB_OAM_DMA_TRANSFER_SIZE  0x9F
+#define GB_OAM_DMA_TRANSFER_SIZE  0xA0
 
 typedef struct gb_memory_range_s
 {
