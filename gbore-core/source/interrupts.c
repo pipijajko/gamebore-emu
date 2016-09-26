@@ -55,7 +55,12 @@ void gb_INTERRUPT_execute(void)
 
             if (BIT_GET_N(requested_interupts, i)) {
 
+                gdbg_trace(g_GB.dbg, "INTERUPT:active bit: %d! IF:0x%hhx\n", i, *IF);
+
                 *IF = BIT_RES_N(*IF, i); // Ok, reset the IF's `i` bit, we're going in!
+
+
+                gdbg_trace(g_GB.dbg, "INTERUPT:active bit: %d! IF after reset:0x%hhx\n", i, *IF);
                 
                 switch (1 << i) {
                 case GB_INT_FLAG_VBLANK:    isr = GB_ISR_VBLANK; break;
@@ -173,7 +178,6 @@ void gb_INTERRUPT_update_timers(void) //byte_t ticks_delta) )
     // Temporary here.
     //
     if (0x8000000000000000 & interrupts->total_ticks) {
-        printf("DUPA DUPA DUPA");
         //
         // If the oldest bit is set in `total_ticks` 
         // rebase all tracked uint64 tick values
@@ -229,7 +233,7 @@ void gb_INTERRUPT_step(byte_t ticks_delta)
             interrupts->display_modeclock = 0;
 
         } else {
-            gdbg_trace(g_GB.dbg, "LCDC DISABLED!");
+            gdbg_trace(g_GB.dbg, "LCDC DISABLED!\n");
             interrupts->display_mode = gb_LCDC_DISABLED;
             interrupts->display_line = 0;
             interrupts->display_modeclock = 0;
@@ -300,8 +304,9 @@ void gb_INTERRUPT_step(byte_t ticks_delta)
     // If check if we are expected to request STAT interrupt
     // for the LCD status events that occured:
     if (((*STAT) & STAT_event) != 0) {
-
+        gdbg_trace(g_GB.dbg, "DISPLAY::STAT_event:0x%hhx\n", STAT_event);
         gb_INTERRUPT_request(GB_INT_FLAG_LCDC_STAT);
+        (*STAT) &= ~STAT_event; 
     }
 
     if (next_mode != gb_LCDC_NO_CHANGE) {

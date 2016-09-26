@@ -51,7 +51,7 @@ typedef union  {
     struct { uint8_t R, G, B, A; };
     uint32_t RGBA;
 } gb_color_s;
-static_assert(sizeof(gb_color_s) == 4, "DUPA");
+static_assert(sizeof(gb_color_s) == 4, "Bad alignment");
 
 
 
