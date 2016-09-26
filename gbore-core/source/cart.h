@@ -97,27 +97,5 @@ errno_t gb_CART_initialize(struct gb_machine_s *const instance,
 void gb_CART_map_into_memory_view(gbmbc_h handle);
 void gb_CART_destroy(gbmbc_h handle);
 
-//////////////////////////////////////////////////////
-// MBC1 Calls (TODO)
-/////////////////////////////////////////////////////
-/*
-MBC1 Notes
-
-0000-3FFF - ROM Bank 00 (Read Only)
-4000-7FFF - ROM Bank 01-7F (Read Only)
-A000-BFFF - RAM Bank 00-03, if any (Read/Write)
-0000-1FFF - RAM Enable (Write Only)  (00h  Disable RAM (default) / 0Ah  Enable RAM)
-
-2000-3FFF - ROM Bank Number (Write Only)
-Writing a value (XXXXBBBB - X = Don't cares, B = bank select bits) into
-2000-3FFF area will select an appropriate ROM bank at 4000-7FFF.
 
 
-The least significant bit of the upper address byte must be one to select a
-ROM bank. For example the following addresses can be used to select a ROM
-bank: 2100-21FF, 2300-23FF, 2500-25FF, ..., 3F00-3FFF.
-The suggested address range to use for MBC2 rom bank selection is 2100-21FF.
-*/
-
-//gb_word_t * gb_MMU_access_ROM(gb_addr_t const address, char const mode);
-//gb_word_t * gb_MMU_access_MBC1(gb_addr_t const address, char const mode);

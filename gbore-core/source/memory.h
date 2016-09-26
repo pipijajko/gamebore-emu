@@ -37,8 +37,8 @@ typedef struct gb_memory_range_s
 struct gb_machine_s;
 
 /* Memory controller callbacks*/
-typedef void* gbmmu_section_context_h; // Memory controller internal context
-typedef gb_word_t (gbmmu_access_evt)(gb_addr_t const, char const, gbmmu_section_context_h*);
+
+typedef gb_word_t (gbmmu_access_evt)(gbmbc_h, gb_addr_t const, gb_word_t const);
 typedef gbmmu_access_evt*  gbmmu_access_pfn;
 
 typedef uint16_t gb_section_attribs_t;
@@ -49,7 +49,6 @@ typedef uint16_t gb_section_attribs_t;
 typedef struct gb_memory_section_s
 {
     byte_t* data;
-
     gb_section_attribs_t attribs; //R, W, RW, Extension, storeVal
     gbmmu_access_pfn mbc_hook;
 
