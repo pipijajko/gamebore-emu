@@ -240,6 +240,7 @@ void gb_INTERRUPT_step(byte_t ticks_delta)
             interrupts->display_line = 0;
             interrupts->display_modeclock = 0;
             next_mode = gb_LCDC_DISABLED;
+            updated_LY = 0;
             
         }
     }
