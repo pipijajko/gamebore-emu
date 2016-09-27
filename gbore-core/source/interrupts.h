@@ -28,7 +28,7 @@ When ISR is executed it's bit should be zeroed before setting IE
 #define GB_ISR_SERIAL_XFER_COMPLETE 0x0058 // Priority 4
 #define GB_ISR_KEYPAD_HI_TO_LO      0x0060 // Priority 5
 
-// Interrupt flags for use with IME and IF:
+// Interrupt flags for use with IE and IF:
 #define GB_INT_FLAG_VBLANK      0x01
 #define GB_INT_FLAG_LCDC_STAT   0x02
 #define GB_INT_FLAG_TIMER       0x04

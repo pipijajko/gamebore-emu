@@ -204,11 +204,14 @@ void gb_INTERRUPT_step(byte_t ticks_delta)
 
 
     // Get pointers to memory area with control registers
-    gb_word_t const * const LYC  = gb_MMU_access_internal(GB_IO_LYC);
-    gb_word_t const * const LCDC = gb_MMU_access_internal(GB_IO_LCDC);
-    gb_word_t * const STAT       = gb_MMU_access_internal(GB_IO_STAT);
-    gb_word_t * const LY         = gb_MMU_access_internal(GB_IO_LY);
-    bool const LCDC_enabled      = BIT_GET_N(*LCDC, 7);
+    gb_word_t const STAT   = *gb_MMU_access_internal(GB_IO_STAT);
+    gb_word_t const LCDC   = *gb_MMU_access_internal(GB_IO_LCDC);
+    gb_word_t const LYC    = *gb_MMU_access_internal(GB_IO_LYC);
+    gb_word_t const  LY    = *gb_MMU_access_internal(GB_IO_LY);
+    gb_word_t updated_LY   = LY;
+    gb_word_t updated_STAT = STAT;
+    
+    bool const LCDC_enabled      = BIT_GET_N(LCDC, 7);
     bool const LCDC_toggled     = (LCDC_enabled != (interrupts->display_mode != gb_LCDC_DISABLED));
 
 
@@ -234,11 +237,10 @@ void gb_INTERRUPT_step(byte_t ticks_delta)
 
         } else {
             gdbg_trace(g_GB.dbg, "LCDC DISABLED!\n");
-            interrupts->display_mode = gb_LCDC_DISABLED;
             interrupts->display_line = 0;
             interrupts->display_modeclock = 0;
             next_mode = gb_LCDC_DISABLED;
-            *LY = 0x00;
+            
         }
     }
                               
@@ -249,9 +251,9 @@ void gb_INTERRUPT_step(byte_t ticks_delta)
         case gb_LCDC_VBLANK: // V-Blank
             if (mode_ticks >= GB_TICKS_VBLANK) {
 
-                *LY = GB_LY_INCREMENT(*LY);
+                updated_LY = GB_LY_INCREMENT(LY);
 
-                if (*LY > 144) {
+                if (updated_LY > GB_SCREEN_H) {
                     next_mode = gb_LCDC_VBLANK;
                     STAT_event = GB_INT_STAT_HBLANK_FLAG; //yes,
                 }
@@ -264,9 +266,9 @@ void gb_INTERRUPT_step(byte_t ticks_delta)
         case gb_LCDC_HBLANK: // H-Blank
             if (mode_ticks >= GB_TICKS_HBLANK) {
 
-                *LY = GB_LY_INCREMENT(*LY);
+                updated_LY = GB_LY_INCREMENT(LY);
 
-                if (*LY == 144) {
+                if (updated_LY == GB_SCREEN_H) {
                     next_mode = gb_LCDC_VBLANK;
                     STAT_event = GB_INT_STAT_VBLANK_FLAG;
 
@@ -293,20 +295,20 @@ void gb_INTERRUPT_step(byte_t ticks_delta)
         }
     }
 
-    // If LY == LYC:  Set the Coincidence flag, and set flag for matching STAT interrupt
+    // If LY has changed and LY == LYC:  Set the Coincidence flag, and set flag for matching STAT interrupt
     // Otherwise:     Clear coincidenc flag
-    bool is_coincident = (*LY) == (*LYC);
-
-    BIT_SETCLR_IF(is_coincident, *STAT, GB_STAT_COINCIDENCE_FLAG);
+    bool is_coincident = (updated_LY == LYC) && (updated_LY != LY);
+    
+    BIT_SETCLR_IF(is_coincident, updated_STAT, GB_STAT_COINCIDENCE_FLAG);
     STAT_event |= is_coincident ? (GB_INT_STAT_LYLYC_FLAG) : (0);
     
     
     // If check if we are expected to request STAT interrupt
     // for the LCD status events that occured:
-    if (((*STAT) & STAT_event) != 0) {
+    if (((updated_STAT) & STAT_event) != 0) {
+
         gdbg_trace(g_GB.dbg, "DISPLAY::STAT_event:0x%hhx\n", STAT_event);
         gb_INTERRUPT_request(GB_INT_FLAG_LCDC_STAT);
-        (*STAT) &= ~STAT_event; 
     }
 
     if (next_mode != gb_LCDC_NO_CHANGE) {
@@ -320,7 +322,7 @@ void gb_INTERRUPT_step(byte_t ticks_delta)
         case gb_LCDC_DISABLED:  modename = "LCDC disabled"; break;
         }
         gdbg_trace(g_GB.dbg,"DISPLAY::new_mode:%s,ticks:%u,LY:%hhu,STAT:0x%x,LCDC:0x%x\n", 
-                   modename,interrupts->display_modeclock, *LY, *STAT, *LCDC);
+                   modename,interrupts->display_modeclock, updated_LY, updated_STAT, LCDC);
         
         interrupts->display_mode = next_mode;
         interrupts->display_modeclock = 0;
@@ -329,22 +331,24 @@ void gb_INTERRUPT_step(byte_t ticks_delta)
         //
         if (gb_LCDC_DISABLED != next_mode) {
 
-            if (((*STAT) & 0b11) != (byte_t)current_mode) {
+            if (((updated_STAT) & 0b11) != (byte_t)current_mode) {
 
                 gdbg_trace(g_GB.dbg, "DISPLAY::current_mode:%d doesn't match STAT MODE FLAG:%hhu",
-                           current_mode, ((*STAT) & 0b11));
+                           current_mode, ((updated_STAT) & 0b11));
             }
             // Clear & Update Mode Flag
-            *STAT &= ~0b11; 
-            *STAT |= (next_mode & 0b11);
+            updated_STAT &= ~0b11;
+            updated_STAT |= (next_mode & 0b11);
 
         } else {
             // We are disabling LCDC, enable CPU access to all memory
-            *STAT &= ~0b11;
+            updated_STAT &= ~0b11;
         }
     }
 
 
+    if(STAT != updated_STAT) *gb_MMU_access_internal(GB_IO_STAT) = updated_STAT;
+    if(LY != updated_LY)     *gb_MMU_access_internal(GB_IO_LY)   = updated_LY;
     //
     //Execute requested interupts (if any):
     //
