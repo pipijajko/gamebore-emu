@@ -67,16 +67,14 @@ void gb_MMU_store8(gb_addr_t const address, gb_word_t const value)
     bool is_writable                    = (section->attribs & GB_MEMATTR_READONLY) == 0;
     bool is_cartridge                   = (section->attribs & GB_MEMATTR_CARTRIDGE) == GB_MEMATTR_CARTRIDGE;
 
-    //temporary here for debug only!
-    if (!is_writable) gdbg_trace(g_GB.dbg, "Illegal internal access below HRAM!");
-    if (is_cartridge && !is_writable) {
-        if (section->mbc_hook) section->mbc_hook(g_GB.m.cartridge, address, value);
-    }
+    if(!is_writable){
+        if (is_cartridge && section->mbc_hook) section->mbc_hook(g_GB.m.cartridge, address, value);
+        else gdbg_trace(g_GB.dbg, "Unhandled ROM Write attempt @ 0x%x!", address);
+    } 
     //
     //  Special I/O write:
     //
     if (gb_IO_PORTS == sec_r.index) {
-
         switch (address) {
         case GB_IO_OAM_DMA:
             gb_MMU_OAM_DMA_execute(value);
