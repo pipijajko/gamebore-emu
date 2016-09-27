@@ -63,7 +63,7 @@ Opcode parsing macros*/
 //Selectors for 8-bit registers, in case when `d` is 0x6, we need to load/store to memory.
 //
 #define REG8_WRITE(d, VAL)\
- ( ((d) != HL_INDIRECT) ? (*g_regmap_D[(d)] = (VAL)) : (*gb_MMU_access_internal(HL) = (VAL)) )
+ ( ((d) != HL_INDIRECT) ? (void)(*g_regmap_D[(d)] = (VAL)) : (gb_MMU_store8(HL,(VAL))))
 
 #define REG8_READ(d)  ( ((d) != HL_INDIRECT) ? *g_regmap_D[(d)] : gb_MMU_load8(HL) )
 
