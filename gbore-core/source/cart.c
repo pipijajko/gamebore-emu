@@ -154,7 +154,7 @@ gb_word_t gb_CART_MBC1_write_hook(gbmbc_h handle, gb_addr_t const address , gb_w
 {
     if (IN_RANGE(address, 0x0000, 0x1FFF)) {
         bool is_enable = (write_val & 0x0A) == 0x0A;
-        gdbg_trace(g_GB.dbg, "MBC1: RAM Enable:%d (ignored)", is_enable);
+        gdbg_trace(g_GB.dbg, "MBC1: RAM Enable:%d (ignored)\n", is_enable);
         /*  0000 - 1FFF - RAM Enable(Write Only)
             Before external RAM can be read or written, it must be enabled by writing to
             this address space.It is recommended to disable external RAM after accessing
@@ -181,21 +181,21 @@ gb_word_t gb_CART_MBC1_write_hook(gbmbc_h handle, gb_addr_t const address , gb_w
         byte_t const bank_index = (bank_select_bits & 0xF) == 0x00
                             ? bank_select_bits + 1
                             : bank_select_bits;
-        gdbg_trace(g_GB.dbg, "MBC1: ROM Bank switch. Value:0x%hhx, Selected:%d", 
+        gdbg_trace(g_GB.dbg, "MBC1: ROM Bank switch. Value:0x%hhx, Selected:%d\n", 
                    write_val, bank_index);
 
         if(cart->ROM_banks_n > bank_index){
             cart->instance->m.memory_view[gb_ROM_BANK_S].data = &cart->ROM_banks[GB_ROMBANK_BYTES * bank_index];
             cart->ROM1_selector = bank_index;
         } else {
-            gdbg_trace(g_GB.dbg, "MBC1: ROM Bank switch failed! Bank:0x%hhx does not exist",
+            gdbg_trace(g_GB.dbg, "MBC1: ROM Bank switch failed! Bank:0x%hhx does not exist\n",
                        bank_index);
         }
 
 
 
     } else if(IN_RANGE(address, 0x4000,0x5FFF)){
-        gdbg_trace(g_GB.dbg, "MBC1: RAM Bank switch /ROM Bank upper bits. NOT SUPPORTED YET");
+        gdbg_trace(g_GB.dbg, "MBC1: RAM Bank switch /ROM Bank upper bits. NOT SUPPORTED YET\n");
         /*  4000-5FFF - RAM Bank Number - or - Upper Bits of ROM Bank Number (Write Only)
             This 2bit register can be used to select a RAM Bank in range from 00-03h, or
             to specify the upper two bits (Bit 5-6) of the ROM Bank number, depending on
@@ -203,7 +203,7 @@ gb_word_t gb_CART_MBC1_write_hook(gbmbc_h handle, gb_addr_t const address , gb_w
         */
 
     } else if (IN_RANGE(address, 0x6000, 0x7FFF)) {
-        gdbg_trace(g_GB.dbg, "MBC1: ROM/RAM mode Select. NOT SUPPORTED YET");
+        gdbg_trace(g_GB.dbg, "MBC1: ROM/RAM mode Select. NOT SUPPORTED YET\n");
         /*  6000-7FFF - ROM/RAM Mode Select (Write Only)
             This 1bit Register selects whether the two bits of the above register should
             be used as upper two bits of the ROM Bank, or as RAM Bank Number.
