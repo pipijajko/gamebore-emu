@@ -190,7 +190,7 @@ gb_color_s gb_DISPLAY_get_OBJ_px(gb_screen_state_s const*const s, gb_OBJ_s sprit
     bool const behind_bg = BIT(sprite.attrib, 7);
     UNUSED(behind_bg); //TODO: IMPLEMENT BG PRIORITY BLENDING
 
-    gb_addr_t const dmg_palette_addr = BIT(sprite.attrib, 4) ? GB_IO_OBP0 : GB_IO_OBP1;
+    gb_addr_t const dmg_palette_addr = BIT(sprite.attrib, 4) ? GB_IO_OBP1 : GB_IO_OBP0;
     uint8_t const sprite_y = flip_y ? (s->OBJ_height_px - 1) - y : y;
     uint8_t const sprite_x = flip_x ? ((GB_TILE_WIDTH - 1) - x) : x;
     
