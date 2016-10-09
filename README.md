@@ -9,6 +9,7 @@ I started it as an experiment in a bit more "modern" C writing style, and kind o
 
 ----------
 I tried to keep 3rd party dependencies to minimum, the only dependency is a tiny tinee freeglut (which was not such a good choice in the end, but it does the job). 
+
 Currently compiling only on Windows, but no particular Windows dependencies except for QueryPerfomanceCounter use --  which is few lines.
 
 ![ SML running - sorry for that fat gif](https://i.imgur.com/TruHVjW.gif)
@@ -31,6 +32,7 @@ Controls
 Building
 ---------
 Easiest way to build it:
+
 1. Checkout the code with git.
 2. Download a prebuilt [freeglut 3.0.0 MSVC Package][1] from [TransmissionZero][2] (or just build it yourself).
 3. Put the `freeglut` directory from the package into the solution directory of gamebore (where gamebore.sln is).
