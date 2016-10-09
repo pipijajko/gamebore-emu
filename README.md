@@ -32,7 +32,7 @@ Building
 ---------
 Easiest way to build it:
 1. Checkout the code with git.
-2. Download ![freeglut 3.0.0 MSVC Package](http://files.transmissionzero.co.uk/software/development/GLUT/freeglut-MSVC.zip) from ![TransmissionZero prebuilt freeglut](http://www.transmissionzero.co.uk/software/freeglut-devel/) packages (or just build it yourself).
+2. Download a prebuilt [freeglut 3.0.0 MSVC Package][1] from [TransmissionZero][2] (or just build it yourself).
 3. Put the `freeglut` directory from the package into the solution directory of gamebore (where gamebore.sln is).
 4. Fire up MSVC 2015 (I use Community Edition) and build away.
 
@@ -59,3 +59,6 @@ More GIFs if you need them
 ![dr mario running](http://i.imgur.com/26IMnVy.gif)
 ![Blargg's CPU instruction tests](http://i.imgur.com/tXBUkWO.gif)
 
+
+[1]: http://files.transmissionzero.co.uk/software/development/GLUT/freeglut-MSVC.zip
+[2]: http://www.transmissionzero.co.uk/software/freeglut-devel
