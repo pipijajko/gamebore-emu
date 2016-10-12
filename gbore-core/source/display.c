@@ -202,11 +202,11 @@ gb_color_s gb_DISPLAY_get_OBJ_px(gb_screen_state_s const*const s, gb_OBJ_s sprit
     } else { //8x16 sprites (made of 2x 8x8 tile)
         if (y < 8) tile_no = sprite.tile_no & 0xFE; //upper 
         else       tile_no = sprite.tile_no | 0x01; //lower
-        y %= 8;
+        //sprite_y can be left unchanged sprite_y % GB_TILE_WIDTH below should take care of it
     }
     gb_addr_t const tile_address = GB_VRAM_TILES2_BEGIN + (tile_no * GB_TILE_BYTES);
 
-    uint8_t color_n = gb_DISPLAY_get_tile_px(tile_address, sprite_x, sprite_y);
+    uint8_t color_n = gb_DISPLAY_get_tile_px(tile_address, sprite_x, sprite_y % GB_TILE_WIDTH);
     if (0x00 == color_n) {
         return DMG_palette[4]; //transparent
     }else{
