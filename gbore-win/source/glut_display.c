@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 #include <assert.h>
-
+#include <math.h>
 #include <Windows.h>
 #include <gl/GL.h>
 #include <GL/glut.h>
@@ -24,8 +24,8 @@ limitations under the License.
 
 //NOTE: GLUT can only be used from the main thread.
 
-#define REFRESH_INTERVAL (1000/GB_FPS_LIMIT)
-
+#define REFRESH_INTERVAL (1000.0/GB_FPS_LIMIT)
+#define WIN_NAME_MAXLEN 256
 
 typedef struct gbdisp_context_s {
     gbdisplay_h         self;
@@ -38,11 +38,12 @@ typedef struct gbdisp_context_s {
     bool is_enabled; //changing this will stop and do a cleanup
     
     bool is_initialized;
-    
+    bool is_fps_locked;
 
-    // for timer start/stop operations
-    uint64_t qpc_frequency;
-    uint64_t qpc_start; 
+    uint32_t fps_start;
+    uint32_t rendered_fps;
+    char window_name[WIN_NAME_MAXLEN];
+
 
 } gbdisp_context_s;
 
@@ -60,37 +61,6 @@ void internal_specialinput_evt(int key, int x, int y);
 void internal_specialinput_release_evt(int key, int x, int y);
 void internal_reshape_window(GLsizei w, GLsizei h);
 void internal_texture_update(void);
-
-
-
-
-#define CLK_TO_MS(c) ((c) / 1000)
-typedef uint64_t clk_us_t; //microsecond clock
-
-void internal_clock_start() {
-
-    LARGE_INTEGER pc;
-    assert(0ULL == g_context.qpc_start); // make sure we dont call start twice
-
-    QueryPerformanceCounter(&pc);
-    g_context.qpc_start = pc.QuadPart;
-}
-
-clk_us_t internal_clock_stop() {
-
-    LARGE_INTEGER pc;
-    QueryPerformanceCounter(&pc);
-    //
-    // To guard against loss-of-precision, we convert
-    // to microseconds *before* dividing by ticks-per-second.
-    //
-    uint64_t diff = (pc.QuadPart - g_context.qpc_start);
-    diff         *= 1000000;
-    diff         /= g_context.qpc_frequency;
-    
-    g_context.qpc_start = 0; //reset timer context
-    return diff;
-}
 
 errno_t 
 gbdisp_init(gbdisp_config_s cfg, gbdisplay_h *handle)
@@ -134,12 +104,12 @@ gbdisp_init(gbdisp_config_s cfg, gbdisplay_h *handle)
     glBlendFunc(GL_ONE_MINUS_DST_ALPHA, GL_DST_ALPHA);
     glClearColor(0.0, 0.0, 0.0, 0.0);*/
 
-    glutInitWindowSize(win_w, win_h);
+    glutInitWindowSize((int)win_w, (int)win_h);
     glutInitWindowPosition(320, 320); //TODO: set screen center
     glutCreateWindow(win_name);
+    
 
-
-
+    
     //glutIdleFunc(internal_idle_evt);
     glutDisplayFunc(internal_display_evt);
     glutReshapeFunc(internal_reshape_window);
@@ -151,7 +121,7 @@ gbdisp_init(gbdisp_config_s cfg, gbdisplay_h *handle)
 
     glutSetKeyRepeat(GLUT_KEY_REPEAT_OFF);
 
-    glutTimerFunc(REFRESH_INTERVAL, internal_main_timer_evt, 0);
+    glutTimerFunc((int)REFRESH_INTERVAL, internal_main_timer_evt, 0);
     
     // Create a texture 
     glTexImage2D(GL_TEXTURE_2D, 0, 3, w , h, 0, GL_RGBA, GL_UNSIGNED_BYTE, d->screen_buffer);
@@ -165,11 +135,10 @@ gbdisp_init(gbdisp_config_s cfg, gbdisplay_h *handle)
     glEnable(GL_TEXTURE_2D);
 
 
-    LARGE_INTEGER frq;
-    QueryPerformanceFrequency(&frq); //QPF will never fail on OS >= Win XP, see msdn
-    d->qpc_frequency = frq.QuadPart;
+    
     d->cfg = cfg;
     d->is_enabled = true; 
+    d->is_fps_locked = false;
     *handle = d->self = (gbdisplay_h) { .unused = d };
 
     return 0;
@@ -230,14 +199,14 @@ void internal_texture_update(void)
     size_t const win_w = scr_w * g_context.cfg.size_modifier;
 
 
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, scr_w, scr_h, GL_RGBA, GL_UNSIGNED_BYTE,
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, (GLsizei)scr_w, (GLsizei)scr_h, GL_RGBA, GL_UNSIGNED_BYTE,
                     g_context.screen_buffer);
 
     glBegin(GL_QUADS);
     glTexCoord2d(0.0, 0.0);		glVertex2d(0.0, 0.0);
-    glTexCoord2d(1.0, 0.0); 	glVertex2d(win_w, 0.0);
-    glTexCoord2d(1.0, 1.0); 	glVertex2d(win_w, win_h);
-    glTexCoord2d(0.0, 1.0); 	glVertex2d(0.0, win_h);
+    glTexCoord2d(1.0, 0.0); 	glVertex2d((GLdouble)win_w, 0.0);
+    glTexCoord2d(1.0, 1.0); 	glVertex2d((GLdouble)win_w, (GLdouble)win_h);
+    glTexCoord2d(0.0, 1.0); 	glVertex2d(0.0, (GLdouble)win_h);
     glEnd();
 
 }
@@ -254,33 +223,41 @@ void internal_display_evt(void) {
 
 
 
-
 void internal_main_timer_evt(int t) {
     UNUSED(t);
-    
-    internal_clock_start();
+    int32_t const frame_start_ms = (uint32_t)glutGet(GLUT_ELAPSED_TIME);
 
     if (g_context.cfg.callbacks.OnPrepareFrame) {
         g_context.cfg.callbacks.OnPrepareFrame(g_context.self, g_context.cfg.callback_context);
     }
-
     if (g_context.screen_ready) {
         internal_texture_update();
         g_context.screen_ready = false;
         glutPostRedisplay();
     }
-    clk_us_t const elapsed_time = internal_clock_stop();
 
-    //
-    // Schedule this function to render next frame 
-    //
-    int const wait_time = REFRESH_INTERVAL - (int)CLK_TO_MS(elapsed_time);
+    int32_t const frame_rendered_ms = (uint32_t)glutGet(GLUT_ELAPSED_TIME);
+    // Makeshift FPS display and toggle-able frame limiter
+    {
+        g_context.rendered_fps++;
+        int32_t const this_sec_elapsed = frame_rendered_ms - g_context.fps_start; //ms elapsed within a current second
 
-    if (wait_time < 0) {
-        fprintf(stderr, "rendering took:%lluus, wait_time:%d ms\n", elapsed_time, wait_time);
+        if (this_sec_elapsed > 1000) { //> 1s -> reformat window title
+            sprintf_s(g_context.window_name, WIN_NAME_MAXLEN, "%s FPS: %u", g_context.cfg.window_name, g_context.rendered_fps);
+            glutSetWindowTitle(g_context.window_name);
+            g_context.fps_start = frame_rendered_ms;
+            g_context.rendered_fps = 0;
+        }
+        int wait_time = 0;
+        if (g_context.is_fps_locked) { //Frame limiter
+            int const render_time = frame_rendered_ms - frame_start_ms;
+            wait_time = (int)ceil(REFRESH_INTERVAL - render_time);
+            if (wait_time < 0) {
+                fprintf(stderr, "rendering took:%lums, wait_time:%d ms\n", render_time, wait_time);
+            }
+        }
+        glutTimerFunc(wait_time < 0 ? 0 : wait_time, internal_main_timer_evt, wait_time);
     }
-
-    glutTimerFunc(wait_time < 0 ? 0 : wait_time, internal_main_timer_evt, wait_time);
 }
 
 void internal_reshape_window(GLsizei w, GLsizei h)
@@ -297,12 +274,11 @@ void internal_reshape_window(GLsizei w, GLsizei h)
     glClearColor(0.0f, 0.0f, 0.5f, 0.0f);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    gluOrtho2D(0, win_w, win_h, 0);
+    gluOrtho2D(0, (GLdouble)win_w, (GLdouble)win_h, 0);
     glMatrixMode(GL_MODELVIEW);
-    glViewport(0, 0, win_w, win_h);
+    glViewport(0, 0, (GLsizei)win_w, (GLsizei)win_h);
 
-
-    glutReshapeWindow(win_w, win_h);
+    glutReshapeWindow((int)win_w, (int)win_h);
 }
 
 //
