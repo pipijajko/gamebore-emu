@@ -84,6 +84,7 @@ int main(int argc, char *argv[])
         assert(ROM_size == fsize);
     } else {
         usage();
+        goto cleanup_generic;
     }
 
 
