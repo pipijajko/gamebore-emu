@@ -13,6 +13,7 @@ I tried to keep 3rd party dependencies to minimum, the only dependency is a tiny
 Currently compiling only on Windows, but no particular Windows dependencies except for QueryPerfomanceCounter use --  which is few lines.
 
 ![ SML running - sorry for that fat gif](https://i.imgur.com/TruHVjW.gif)
+
 Usage
 ----------------------
 	gamebore.exe <rom_name>
@@ -49,7 +50,7 @@ Completness
 
 What's still missing?
 ----------------------
-* Real-Time save upport,
+* Real-Time save support,
 * MBC save support,
 * GBC support (should be rather easy with current memory infra),
 * MBC2,3... and RTC support,
